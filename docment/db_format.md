@@ -1,5 +1,7 @@
 ## Meta data format
 
+変更予定
+
 ```json
 {
 	"_id": Object,

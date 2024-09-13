@@ -17,8 +17,7 @@ pub struct MongoClient {
 }
 
 impl  MongoClient {
-    pub fn new(app_config: AppConfig) -> Self{
-    pub async fn new(app_config: &AppConfig) -> Self{
+    pub async fn new(app_config: &AppConfig) -> Self {
         let db_addr = app_config.mongoDB_addr;
         let db_name = app_config.mongoDB_name.clone().into();
 

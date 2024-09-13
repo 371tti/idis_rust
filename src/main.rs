@@ -2,7 +2,7 @@ use actix_web::{get, web, App, HttpServer, Responder, middleware::Logger, HttpRe
 use env_logger::Env;
 use mongodb::change_stream::session;
 use utils::api::mongo_client::MongoClient;
-use utils::user::User;
+use utils::api::user::User;
 
 use std::f64::consts;
 use std::{clone, string};
@@ -27,10 +27,12 @@ use crate::utils::ruid::RuidGenerator;
 
 use crate::sys::init::AppConfig;
 
-use crate::utils::api::cookie::Session;
+use crate::utils::api::session::Session;
 
 #[get("/")]
 async fn index(app: web::Data<AppMod>, req: HttpRequest) -> impl Responder {
+
+
     let id = app.ruid.generate(0x1231, None);
 
 

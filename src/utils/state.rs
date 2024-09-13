@@ -7,3 +7,5 @@ pub struct  State {
     pub userRUID: Ruid,
     pub userACLV: i32, // アカウントレベル
 }
+
+impl

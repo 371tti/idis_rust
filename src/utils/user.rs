@@ -21,9 +21,13 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(app_config: AppConfig, db: MongoClient) -> Self {
-        
+    pub fn new(app_config: &AppConfig, db: &MongoClient) -> Self {
+        Self {
+            users: HashMap::new(),
+            id_to_ruid: HashMap::new(),
+            db: db.clone(),
+        }
     }
 
-    fn 
+
 }

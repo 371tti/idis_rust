@@ -10,6 +10,7 @@ use std::sync::Mutex;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::ptr;
+use std::sync::Arc;
 
 
 
@@ -73,10 +74,10 @@ impl AppMod {
         let json_api = JsonApi::new(&app_config);
         let ruid = RuidGenerator::new(&app_config);
         let session = Session::new(&app_config);
-        let db = MongoClient::new(&app_config).await?;
+        let db = MongoClient::new(&app_config).await.expect("dbへの接続失敗　パニックなう"); // あとでエラーハンドリングする
         
         let file_api = FileApi::new(&app_config, &json_api);
-        let user = User::new(&app_config, db);
+        let user = User::new(&app_config, &db);
 
         let app_mod = AppMod {
             file_api: file_api,
@@ -96,9 +97,14 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
     let app_config = AppConfig::new();
-    
 
-    let app_mod = web::Data::new(AppMod::new(app_config.clone()));
+
+
+    // `AppMod::new` を `await` して `AppMod` のインスタンスを取得
+    let app_mod_instance = AppMod::new(app_config.clone()).await;
+
+    // `AppMod` のインスタンスを `Arc` でラップし、`web::Data` に渡す
+    let app_mod = web::Data::new(Arc::new(app_mod_instance));
 
     // サーバーの設定
     let server = HttpServer::new(move || {

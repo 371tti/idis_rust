@@ -37,3 +37,15 @@
 12. `viw`: Impressions-can't edit
 13. `reaction`: reactions-can't edit
 14. `reaction-count`: reaction count-can't edit
+
+## User System data format
+
+```json
+{
+   'account-type': int,
+   'id': String,
+   'name': String,
+   'password': String,
+   'RUID': RUID/*user*/,
+}
+```

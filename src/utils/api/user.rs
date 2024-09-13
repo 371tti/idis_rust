@@ -1,16 +1,12 @@
 use std::sync::Mutex;
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 
-use actix_web::web::Json;
 use chrono::Utc;
 
 use crate::sys::init::AppConfig;
-use crate::utils::ruid::Ruid;
-use crate::utils::{api::mongo_client::MongoClient, json_f};
+use crate::utils::api::mongo_client::MongoClient;
 
-use futures::executor::block_on;
 
-use serde_json::Value;
 
 pub struct UserData {
     user_id: String,

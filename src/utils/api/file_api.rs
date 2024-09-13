@@ -1,12 +1,10 @@
 // src/api/file_app.rs
 
-use actix_web::{HttpResponse, web, http::header::HeaderMap, http::StatusCode, HttpRequest};
+use actix_web::{HttpResponse, http::header::HeaderMap, http::StatusCode, HttpRequest};
 use std::path::{PathBuf, Path};
-use std::sync::{Arc, Weak};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, SeekFrom, AsyncSeekExt};
 use mime_guess::from_path;
-use futures::stream::{Stream, StreamExt};
 use bytes::Bytes;
 use actix_web::body::SizedStream;
 
@@ -14,7 +12,6 @@ use crate::utils::json_f;
 use crate::utils::api::json_api::JsonApi;
 
 use crate::sys::init::AppConfig;
-use crate::AppMod;
 
 #[derive(Clone)]
 pub struct FileApi {

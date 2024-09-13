@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use chrono::Duration;
 use rand_chacha::ChaCha20Rng;
-use rand::{RngCore, SeedableRng};
+use rand::RngCore;
 
 use crate::sys::init::AppConfig;
 pub struct Session {

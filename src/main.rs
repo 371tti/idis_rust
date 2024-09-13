@@ -1,6 +1,5 @@
 use actix_web::{get, web, App, HttpServer, Responder, middleware::Logger, HttpResponse, HttpRequest};
 use env_logger::Env;
-use mongodb::change_stream::session;
 use utils::api::mongo_client::MongoClient;
 use utils::api::user::User;
 

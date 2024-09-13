@@ -97,7 +97,7 @@ impl MongoClient {
     }
 }
 
-// Manually implement Clone for MongoClient
+// 手動でクローン実装
 impl Clone for MongoClient {
     fn clone(&self) -> Self {
         Self {

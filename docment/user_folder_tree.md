@@ -1,5 +1,6 @@
 * `<user>`
   * /agent
+    * ** .html
   * /etc
     * agent_register.json
     * path_register.json

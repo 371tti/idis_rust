@@ -4,10 +4,9 @@
   * /etc
     * agent_register.json
     * path_register.json
-  * /ud
-    * about_user.json
-  * /usr
   * /home
+    * about_user.json
+    * *.*
+    * /*
   * /var
     * user_log.json
-*

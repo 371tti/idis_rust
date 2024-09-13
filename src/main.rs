@@ -58,9 +58,6 @@ async fn index(app: web::Data<AppMod>, req: HttpRequest) -> impl Responder {
 //         .await
 // }
 
-// アプリケーション全体で共有するやつ
-
-
 
 pub struct AppMod {
     file_api: FileApi,

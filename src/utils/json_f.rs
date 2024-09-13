@@ -30,3 +30,14 @@ pub fn success(proses_num: u32, code: u32, message: &str) -> serde_json::Value {
         "UTC": utc_timestamp
     })
 }
+
+pub fn db_user_system(account_type: i32, id: &str, name: &str, password: &str, ruid: u128) -> serde_json::Value {
+
+    json!({
+            "account-type": account_type,
+            "id": id,
+            "name": name,
+            "password": password,
+            "RUID": ruid,
+         })
+}

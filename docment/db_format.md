@@ -42,10 +42,10 @@
 
 ```json
 {
-   'account-type': int,
-   'id': String,
-   'name': String,
-   'password': String,
-   'RUID': RUID/*user*/,
+   "account-type": int,
+   "id": String,
+   "password": String,
+   "RUID": RUID/*user*/,
+   "generate-UTC": int,
 }
 ```

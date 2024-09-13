@@ -1,6 +1,8 @@
 use actix_web::{get, web, App, HttpServer, Responder, middleware::Logger, HttpResponse, HttpRequest};
 use env_logger::Env;
 use mongodb::change_stream::session;
+use utils::api::mongo_client::MongoClient;
+use utils::user::User;
 
 use std::f64::consts;
 use std::{clone, string};
@@ -63,21 +65,25 @@ pub struct AppMod {
     json_api: JsonApi,
     session: Session,
     ruid: RuidGenerator,
+    db: MongoClient,
 }
 
 impl AppMod {
-    pub fn new(app_config: AppConfig) -> Self{
+    pub async fn new(app_config: AppConfig) -> Self{
         let json_api = JsonApi::new(&app_config);
         let ruid = RuidGenerator::new(&app_config);
         let session = Session::new(&app_config);
+        let db = MongoClient::new(&app_config).await?;
         
         let file_api = FileApi::new(&app_config, &json_api);
+        let user = User::new(&app_config, db);
 
         let app_mod = AppMod {
             file_api: file_api,
             json_api: json_api,
             session: session,
             ruid: ruid,
+            db: db,
         };
 
         return app_mod;

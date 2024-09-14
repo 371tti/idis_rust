@@ -35,10 +35,20 @@ impl Processor {
         let session_id_some = self.request.cookie("session_id");
         if let Some(session_id) = session_id_some { // セッションを持ってる場合
             match self.app.session.base64_to_vec(&session_id.to_string()) {
-                Ok(session_vec) => {
+                Ok(session_vec) => { //フォーマットがbase64である
+                    if self.app.config.session_len_byte == session_vec.len() {
+                        if let Some(user_ruid) = self.app.session.user(session_vec.clone()) { // 存在するセッション
+                            self.app.session.update_last_access_time(session_vec);
+                            self.app.user.
+                        } else { // 存在しないセッション
+
+                        }
+                    } else { // フォーマットが無効
+
+                    }
                     
                 },
-                Err(e) => println!("{}",e),
+                Err(e) => println!("{}",e), //フォーマットが無効
             }
 
         } else { // 持ってない場合

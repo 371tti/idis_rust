@@ -58,6 +58,8 @@ pub struct AppMod {
     session: Session,
     ruid: RuidGenerator,
     db: MongoClient,
+    config: AppConfig,
+    user: User,
 }
 
 impl AppMod {
@@ -76,6 +78,8 @@ impl AppMod {
             session: session,
             ruid: ruid,
             db: db,
+            config: app_config,
+            user: user,
         };
 
         return app_mod;

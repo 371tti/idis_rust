@@ -35,7 +35,7 @@ impl Session {
         }
     }
 
-    pub fn update_last_access_time(&mut self, session_vec: Vec<u8>) {
+    pub fn update_last_access_time(&self, session_vec: Vec<u8>) {
         let latest_access_time = Utc::now().timestamp_millis() as u64;
         if let Some(session_data) = self.sessions.lock().unwrap().get_mut(&session_vec) {
             session_data.last_access_time = latest_access_time;
@@ -43,7 +43,7 @@ impl Session {
     }
 
 
-    pub fn user_set(&mut self, session_vec: Vec<u8>, ruid: u128) -> Option<SessionData> { // セッションのユーザーをセット
+    pub fn user_set(&self, session_vec: Vec<u8>, ruid: u128) -> Option<SessionData> { // セッションのユーザーをセット
         if let Some(session_data) = self.sessions.lock().unwrap().get_mut(&session_vec) {
             // ruid を先頭に移動
             if let Some(pos) = session_data.users.iter().position(|&x| x == ruid) {
@@ -76,7 +76,7 @@ impl Session {
         }
     }
 
-    pub fn add(&mut self, session_vec: Vec<u8>, ruid: u128) -> Option<SessionData>{ // セッションにユーザーを追加
+    pub fn add(&self, session_vec: Vec<u8>, ruid: u128) -> Option<SessionData>{ // セッションにユーザーを追加
         if let Some(session_data) = self.sessions.lock().unwrap().get_mut(&session_vec) {
             session_data.users.push(ruid);
             Some(session_data.clone())
@@ -85,7 +85,7 @@ impl Session {
         }
     }
 
-    pub fn rem(&mut self, session_vec: Vec<u8>, ruid: u128) -> Option<SessionData> { // セッションのユーザーを削除
+    pub fn rem(&self, session_vec: Vec<u8>, ruid: u128) -> Option<SessionData> { // セッションのユーザーを削除
         if let Some(session_data) = self.sessions.lock().unwrap().get_mut(&session_vec) {
             session_data.users.retain(|&x| x != ruid);
             Some(session_data.clone())
@@ -94,7 +94,7 @@ impl Session {
         }
     }
 
-    pub fn set(&mut self) -> Vec<u8> { // 新しいセッション
+    pub fn set(&self) -> Vec<u8> { // 新しいセッション
         let session_vec = self.generate();
         if self.sessions.lock().unwrap().contains_key(&session_vec) {
             self.set()
@@ -108,11 +108,11 @@ impl Session {
         }
     }
 
-    pub fn unset(&mut self, session_vec: Vec<u8>) -> Option<SessionData> { // セッションを削除
+    pub fn unset(&self, session_vec: Vec<u8>) -> Option<SessionData> { // セッションを削除
         self.sessions.lock().unwrap().remove(&session_vec)
     }
 
-    pub fn generate(&mut self) -> Vec<u8> { // 乱数の生成
+    pub fn generate(&self) -> Vec<u8> { // 乱数の生成
         let mut buffer = vec![0u8; self.len];
         self.rng.lock().unwrap().fill_bytes(&mut buffer);
 

@@ -17,6 +17,7 @@ use std::sync::Arc;
 
 mod utils;
 mod sys;
+mod processor;
 
 use crate::utils::api::json_api::JsonApi;
 use crate::utils::api::file_api::FileApi;
@@ -28,21 +29,13 @@ use crate::sys::init::AppConfig;
 
 use crate::utils::api::session::Session;
 
+use crate::processor::Processor;
+
 #[get("/")]
 async fn index(app: web::Data<AppMod>, req: HttpRequest) -> impl Responder {
+    let mut state = Processor::new(app, req);
 
-
-    let id = app.ruid.generate(0x1231, None);
-
-
-    let json = json!({
-        "Ruid": id.to_string()
-    });
-
-    app.json_api.stream(json)
-        .cors("*")
-        .send(req)
-        .await
+    return "asas";
 }
 
 // #[get("/s")]

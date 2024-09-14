@@ -2,5 +2,4 @@
 
 pub mod ruid;
 pub mod api;
-pub mod state;
 pub mod json_f;

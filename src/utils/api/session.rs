@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Mutex};
 
+use actix_web::HttpRequest;
 use chrono::{Duration, Utc};
 use mongodb::change_stream::session;
 use rand_chacha::ChaCha20Rng;
@@ -12,6 +13,7 @@ use crate::sys::init::AppConfig;
 #[derive(Clone)]  
 pub struct SessionData {
     last_access_time: u64,
+    generated_time: u64,
     users: Vec<u128>,
 }
 
@@ -99,9 +101,10 @@ impl Session {
         if self.sessions.lock().unwrap().contains_key(&session_vec) {
             self.set()
         } else {
-            let latest_access_time = Utc::now().timestamp_millis() as u64;
+            let time = Utc::now().timestamp_millis() as u64;
             self.sessions.lock().unwrap().insert(session_vec.clone(), SessionData{
-                last_access_time: latest_access_time,
+                last_access_time: time,
+                generated_time: time,
                 users: Vec::new(),
             });
             session_vec
@@ -125,5 +128,9 @@ impl Session {
 
     pub fn base64_to_vec(&self, session_base64: &str) -> Result<Vec<u8>, DecodeError> {
         general_purpose::STANDARD.decode(session_base64)
+    }
+
+    pub fn get_client_ip(&self, req: HttpRequest) {
+        
     }
 }

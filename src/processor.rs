@@ -2,7 +2,7 @@ use actix_web::{web, HttpRequest, HttpResponse};
 
 use serde_json::Value;
 
-use crate::AppMod;
+use crate::{utils::api::user::UserData, AppMod};
 
 
 pub struct Processor {
@@ -39,7 +39,12 @@ impl Processor {
                     if self.app.config.session_len_byte == session_vec.len() {
                         if let Some(user_ruid) = self.app.session.user(session_vec.clone()) { // 存在するセッション
                             self.app.session.update_last_access_time(session_vec);
-                            self.app.user.
+                            if let Some(user_data) = self.app.user.get(&user_ruid) {
+                                self.userRUID = user_ruid;
+                                self.perm
+                            } else { // 存在しないセッション
+
+                            }
                         } else { // 存在しないセッション
 
                         }

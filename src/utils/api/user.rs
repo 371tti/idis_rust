@@ -7,7 +7,7 @@ use crate::sys::init::AppConfig;
 use crate::utils::api::mongo_client::MongoClient;
 
 
-
+#[derive(Clone)]
 pub struct UserData {
     user_id: String,
     account_level: i32,
@@ -52,8 +52,8 @@ impl User {
 
     pub fn set(&mut self, ruid: &u128, user_id: &str, account_level: &i32, perm: &Vec<u128>) -> Result<(), String> {
         // ロック取得時のエラーハンドリング
-        let mut users = self.users.lock().map_err(|_| "Failed to acquire lock on users data:".to_string())?;
-        let mut id_to_ruid = self.id_to_ruid.lock().map_err(|_| "Failed to acquire lock on id_to_ruid data:".to_string())?;
+        let mut users = self.users.lock().unwrap();
+        let mut id_to_ruid = self.id_to_ruid.lock().unwrap();
         
         // UTCの現在時刻をミリ秒で取得
         let latest_access_time = Utc::now().timestamp_millis() as u64;
@@ -98,6 +98,18 @@ impl User {
             Err("User not found.".to_string())
         }
     }
+
+    pub fn get(&self, ruid: &u128) -> Option<UserData> {
+        let users = self.users.lock().unwrap();
+
+        if let Some(user_data) = users.get(ruid) {
+            user_data.clone()
+        } else {
+            None
+        }      
+    }
+
+
 
     // pub fn db_create(&self) -> Result<Value, Box<dyn Error>> {
     //     let user_system_data = json_f::db_user_system(0, "@xxxx", "xxxx", "xxxx", 0);

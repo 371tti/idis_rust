@@ -1,15 +1,5 @@
 ## HTTP Endpoints 変更予定
 
-### `/users/<userIDquery>` -> JSON
-
-- **Description:** 全ユーザーIDを検索し、ヒットするユーザーとフォロワー数をJSON形式で返却します。
-- **Recommendation:** WS-APIを推奨。
-
-### `/user/<userID>` -> JSON
-
-- **Description:** 指定したユーザーIDのユーザー情報を取得します。
-- **Recommendation:** WS-APIを推奨。
-
 ### `/ls/@<userID>/<path>` -> JSON
 
 - **Description:** 指定したパスのフォルダまたはファイルのメタデータを取得します。

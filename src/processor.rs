@@ -1,29 +1,30 @@
+use std::error::Error;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 
 use serde_json::Value;
 
-use crate::{utils::api::user::UserData, AppMod};
-
+use crate::{
+    utils::api::user::UserData,
+    AppMod,
+};
 
 pub struct Processor {
     pub app: web::Data<AppMod>,
     pub userRUID: u128,
-    pub user: i32, // アカウントレベル
-    pub perm: Vec<u128>,
+    pub user_data: UserData,
     pub err: Option<Value>,
     pub response: Option<HttpResponse>,
     pub request: HttpRequest,
     pub session_id: Vec<u8>,
 }
 
-
 impl Processor {
-    pub fn new(app: web::Data<AppMod>, req: HttpRequest) -> Self{
+    pub fn new(app: web::Data<AppMod>, req: HttpRequest) -> Self {
         Self {
             app: app,
             userRUID: 0,
-            user: 0,
-            perm: Vec::new(),
+            user_data: UserData::default(),
             err: None,
             response: None,
             request: req,
@@ -31,33 +32,70 @@ impl Processor {
         }
     }
 
-    pub fn session_check(&mut self) {
-        let session_id_some = self.request.cookie("session_id");
-        if let Some(session_id) = session_id_some { // セッションを持ってる場合
-            match self.app.session.base64_to_vec(&session_id.to_string()) {
-                Ok(session_vec) => { //フォーマットがbase64である
-                    if self.app.config.session_len_byte == session_vec.len() {
-                        if let Some(user_ruid) = self.app.session.user(session_vec.clone()) { // 存在するセッション
-                            self.app.session.update_last_access_time(session_vec);
-                            if let Some(user_data) = self.app.user.get(&user_ruid) {
-                                self.userRUID = user_ruid;
-                                self.perm
-                            } else { // 存在しないセッション
-
-                            }
-                        } else { // 存在しないセッション
-
-                        }
-                    } else { // フォーマットが無効
-
+    pub fn session_check(&mut self){
+        let result: Result<(), Box<dyn Error>> = (|| {
+        // クッキーから session_id を取得
+        if let Some(session_id) = self.request.cookie("session_id") {
+            // session_id を base64 から Vec<u8> に変換
+            if let Ok(session_vec) = self.app.session.base64_to_vec(&session_id.to_string()) {
+                // session_vec の長さを確認
+                if self.app.config.session_len_byte == session_vec.len() {
+                    // ユーザーセッションが存在するか確認
+                    if let Some(user_ruid) = self.app.session.user(session_vec.clone())? {
+                        // 最終アクセス時間を更新
+                        self.app
+                            .session
+                            .update_last_access_time(session_vec.clone())?;
+                        self.app.user.update_last_access_time(&user_ruid)?;
+                        // ユーザー情報を取得
+                        let user_data = self.app.user.get(&user_ruid)?;
+                        // 情報をステートにコピー
+                        self.userRUID = user_ruid;
+                        self.user_data = user_data;
+                        self.session_id = session_vec;
+                        return Ok(());
+                    } else {
+                        // ユーザーセッションがない場合
                     }
-                    
-                },
-                Err(e) => println!("{}",e), //フォーマットが無効
+                } else {
+                    // session_vec の長さが無効な場合の処理
+                }
+            } else {
+                // base64 のフォーマットが無効な場合の処理
             }
-
-        } else { // 持ってない場合
-            
+        } else {
+            // セッションを持ってない
         }
+
+        // セッションを生成
+        let new_session_vec = self.app.session.set()?;
+        // ユーザーセッションを生成
+        let guest_user_ruid = self.app.ruid.generate(0x0000, None);
+        self.app.user.set(
+            &guest_user_ruid.to_u128(),
+            &format!("@guest{}", guest_user_ruid.to_string()),
+            &0,
+            &vec![0u128],
+        )?;
+        // 情報をステートにコピー
+        self.user_data = self.app.user.get(&guest_user_ruid.to_u128())?;
+        self.userRUID = guest_user_ruid.to_u128();
+        self.session_id = new_session_vec;
+
+        return Ok(());
+    })();
+    if let Err(e) = result {
+        // ロールバック処理
+        if self.session_id.is_empty() {
+            self.app.session.unset(self.session_id.clone()).unwrap_or_default();
+        }
+        if self.userRUID != 0 {
+            self.app.user.remove(&self.userRUID).unwrap_or_default();
+        }
+        self.user_data = UserData::default();
+
+        // 
+    }
+
     }
 }

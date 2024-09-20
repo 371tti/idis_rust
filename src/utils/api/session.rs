@@ -1,16 +1,13 @@
 use std::{collections::HashMap, sync::Mutex};
-
-use actix_web::HttpRequest;
 use chrono::{Duration, Utc};
-use mongodb::change_stream::session;
 use rand_chacha::ChaCha20Rng;
 use rand::RngCore;
 
-use base64::{engine::general_purpose, DecodeError, Engine as _}; 
+use base64::{engine::general_purpose, DecodeError, Engine as _};
 
 use crate::sys::init::AppConfig;
 
-#[derive(Clone)]  
+#[derive(Clone)]
 pub struct SessionData {
     last_access_time: u64,
     generated_time: u64,
@@ -23,11 +20,10 @@ pub struct Session {
     life_time_server: Duration,
     life_time_client: Duration,
     rng: Mutex<ChaCha20Rng>,
-    
 }
 
 impl Session {
-    pub fn new(app_config: &AppConfig) -> Self{
+    pub fn new(app_config: &AppConfig) -> Self {
         Session {
             sessions: Mutex::new(HashMap::with_capacity(app_config.session_default_capacity)),
             len: app_config.session_len_byte,
@@ -37,92 +33,105 @@ impl Session {
         }
     }
 
-    pub fn update_last_access_time(&self, session_vec: Vec<u8>) {
+    pub fn update_last_access_time(&self, session_vec: Vec<u8>) -> Result<(), String> {
         let latest_access_time = Utc::now().timestamp_millis() as u64;
-        if let Some(session_data) = self.sessions.lock().unwrap().get_mut(&session_vec) {
+        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        if let Some(session_data) = sessions.get_mut(&session_vec) {
             session_data.last_access_time = latest_access_time;
         }
+        Ok(())
     }
 
-
-    pub fn user_set(&self, session_vec: Vec<u8>, ruid: u128) -> Option<SessionData> { // セッションのユーザーをセット
-        if let Some(session_data) = self.sessions.lock().unwrap().get_mut(&session_vec) {
+    pub fn user_set(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, String> {
+        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        if let Some(session_data) = sessions.get_mut(&session_vec) {
             // ruid を先頭に移動
             if let Some(pos) = session_data.users.iter().position(|&x| x == ruid) {
                 let user = session_data.users.remove(pos);
                 session_data.users.insert(0, user);
 
-                Some(session_data.clone())
+                Ok(Some(session_data.clone()))
             } else {
-                None
+                Ok(None)
             }
-    
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub fn user(&self, session_vec: Vec<u8>) -> Option<u128> {
-        if let Some(session_data) = self.sessions.lock().unwrap().get(&session_vec) {
-            session_data.users.first().copied()
+    pub fn user(&self, session_vec: Vec<u8>) -> Result<Option<u128>, String> {
+        let sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        if let Some(session_data) = sessions.get(&session_vec) {
+            Ok(session_data.users.first().copied())
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub fn get(&self , session_vec: Vec<u8>) -> Option<SessionData> { // セッションにあるユーザーの一覧
-        if let Some(session_data) = self.sessions.lock().unwrap().get(&session_vec) {
-            Some(session_data.clone())
+    pub fn get(&self, session_vec: Vec<u8>) -> Result<Option<SessionData>, String> {
+        let sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        if let Some(session_data) = sessions.get(&session_vec) {
+            Ok(Some(session_data.clone()))
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub fn add(&self, session_vec: Vec<u8>, ruid: u128) -> Option<SessionData>{ // セッションにユーザーを追加
-        if let Some(session_data) = self.sessions.lock().unwrap().get_mut(&session_vec) {
+    pub fn add(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, String> {
+        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        if let Some(session_data) = sessions.get_mut(&session_vec) {
             session_data.users.push(ruid);
-            Some(session_data.clone())
+            Ok(Some(session_data.clone()))
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub fn rem(&self, session_vec: Vec<u8>, ruid: u128) -> Option<SessionData> { // セッションのユーザーを削除
-        if let Some(session_data) = self.sessions.lock().unwrap().get_mut(&session_vec) {
+    pub fn rem(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, String> {
+        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        if let Some(session_data) = sessions.get_mut(&session_vec) {
             session_data.users.retain(|&x| x != ruid);
-            Some(session_data.clone())
+            Ok(Some(session_data.clone()))
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub fn set(&self) -> Vec<u8> { // 新しいセッション
-        let session_vec = self.generate();
-        if self.sessions.lock().unwrap().contains_key(&session_vec) {
-            self.set()
-        } else {
-            let time = Utc::now().timestamp_millis() as u64;
-            self.sessions.lock().unwrap().insert(session_vec.clone(), SessionData{
-                last_access_time: time,
-                generated_time: time,
-                users: Vec::new(),
-            });
-            session_vec
+    pub fn set(&self) -> Result<Vec<u8>, String> {
+        loop {
+            let session_vec = self.generate()?;
+            let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+            if !sessions.contains_key(&session_vec) {
+                let time = Utc::now().timestamp_millis() as u64;
+                sessions.insert(
+                    session_vec.clone(),
+                    SessionData {
+                        last_access_time: time,
+                        generated_time: time,
+                        users: Vec::new(),
+                    },
+                );
+                return Ok(session_vec);
+            }
+            // ロックを解放して再度ループ
+            drop(sessions);
         }
     }
 
-    pub fn unset(&self, session_vec: Vec<u8>) -> Option<SessionData> { // セッションを削除
-        self.sessions.lock().unwrap().remove(&session_vec)
+    pub fn unset(&self, session_vec: Vec<u8>) -> Result<Option<SessionData>, String> {
+        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        Ok(sessions.remove(&session_vec))
     }
 
-    pub fn generate(&self) -> Vec<u8> { // 乱数の生成
+    pub fn generate(&self) -> Result<Vec<u8>, String> {
         let mut buffer = vec![0u8; self.len];
-        self.rng.lock().unwrap().fill_bytes(&mut buffer);
+        let mut rng = self.rng.lock().map_err(|e| e.to_string())?;
+        rng.fill_bytes(&mut buffer);
 
-        buffer
+        Ok(buffer)
     }
 
-    pub fn vec_to_base64(&self, session_vec: Vec<u8>) -> String{
+    pub fn vec_to_base64(&self, session_vec: Vec<u8>) -> String {
         general_purpose::STANDARD.encode(session_vec)
     }
 
@@ -130,7 +139,4 @@ impl Session {
         general_purpose::STANDARD.decode(session_base64)
     }
 
-    pub fn get_client_ip(&self, req: HttpRequest) {
-        
-    }
 }

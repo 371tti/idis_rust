@@ -86,7 +86,7 @@ impl Processor {
     })();
     if let Err(e) = result {
         // ロールバック処理
-        if self.session_id.is_empty() {
+        if self.session_id.is_empty() == false {
             self.app.session.unset(self.session_id.clone()).unwrap_or_default();
         }
         if self.userRUID != 0 {
@@ -94,7 +94,7 @@ impl Processor {
         }
         self.user_data = UserData::default();
 
-        // 
+        // Err返す
     }
 
     }

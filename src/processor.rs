@@ -95,6 +95,8 @@ impl Processor {
         self.user_data = UserData::default();
 
         // Err返す
+
+        
     }
 
     }

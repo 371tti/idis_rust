@@ -105,16 +105,20 @@ impl Processor {
     self
     }
 
-    pub fn auth() {
+    pub fn parsing() {
+        // jsonクエリにリクエストを解析変換
+    }
 
+    pub fn auth() {
+        // 権限確認
     }
 
     pub fn endpoint() {
-        
+        // エンドポイント郡
     }
 
     pub fn build() {
-
+        // リクエストビルダー
     }
 
 

@@ -1,11 +1,11 @@
 use std::error::Error;
 
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web::{self, Json}, HttpRequest, HttpResponse};
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::{
-    utils::api::user::UserData,
+    utils::{api::user::UserData, json_f},
     AppMod,
 };
 
@@ -13,10 +13,10 @@ pub struct Processor {
     pub app: web::Data<AppMod>,
     pub userRUID: u128,
     pub user_data: UserData,
-    pub err: Option<Value>,
-    pub response: Option<HttpResponse>,
+    pub result: Option<Value>,
     pub request: HttpRequest,
     pub session_id: Vec<u8>,
+    pub status: u32,
 }
 
 impl Processor {
@@ -25,14 +25,14 @@ impl Processor {
             app: app,
             userRUID: 0,
             user_data: UserData::default(),
-            err: None,
-            response: None,
+            result: None,
             request: req,
             session_id: Vec::new(),
+            status: 100,
         }
     }
 
-    pub fn session_check(&mut self){
+    pub fn session_check(&mut self) -> &mut Self {
         let result: Result<(), Box<dyn Error>> = (|| {
         // クッキーから session_id を取得
         if let Some(session_id) = self.request.cookie("session_id") {
@@ -95,9 +95,27 @@ impl Processor {
         self.user_data = UserData::default();
 
         // Err返す
+        self.result = Some(
+            json_f::err(1, 500, "Exception in session handling.")
+        );
+        self.status = 500;
 
+    } else {
+    }
+    self
+    }
+
+    pub fn auth() {
+
+    }
+
+    pub fn endpoint() {
         
     }
 
+    pub fn build() {
+
     }
+
+
 }

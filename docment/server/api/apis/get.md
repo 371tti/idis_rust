@@ -1,6 +1,6 @@
-/get API
+# /get API
 
-概要
+## 概要
 
 /getエンドポイントは、ユーザー名とパスを指定してデータを取得するAPIです。このエンドポイントでは、バイナリデータやJSONデータを返却します。
 
@@ -9,10 +9,10 @@
 
 ---
 
-使用されるJSONデータ
+## 使用されるJSONデータ
 
 以下のJSONデータを例として使用します。このデータに対してフィールドの指定や範囲の指定を行います。
-
+```
 {
   "id": 12345,
   "name": "John Doe",
@@ -40,23 +40,23 @@
     "newsletter_subscribed": true
   }
 }
-
+```
 
 ---
 
-エンドポイント構造
+## エンドポイント構造
 
 1. GET リクエスト（従来の形式）
 
-エンドポイント: GET /get/<user>/<path>
+エンドポイント: `GET /get/<user>/<path>`
 
 クエリパラメータ:
 
-feeld: 取得したいフィールドを指定します。
+- feeld: 取得したいフィールドを指定します。
 
-rng: データの取得範囲を指定します。
+- rng: データの取得範囲を指定します。
 
-num_of_obj: フィールド内のオブジェクト数を取得する場合に使用します。
+- num_of_obj: フィールド内のオブジェクト数を取得する場合に使用します。
 
 
 
@@ -66,33 +66,33 @@ num_of_obj: フィールド内のオブジェクト数を取得する場合に�
 
 ヘッダー:
 
-Content-Type: application/json
+- Content-Type: `application/json`
 
 
 リクエストボディ: JSON形式で以下のパラメータを含みます。
 
-user: データを取得する対象のユーザー名。
+- user: データを取得する対象のユーザー名。
 
-path: 取得したいファイルやデータのパス。
+- path: 取得したいファイルやデータのパス。
 
-feeld: 取得したいフィールドを指定します。
+- feeld: 取得したいフィールドを指定します。
 
-rng: データの取得範囲を指定します。
+- rng: データの取得範囲を指定します。
 
-num_of_obj: フィールド内のオブジェクト数を取得する場合に使用します。
+- num_of_obj: フィールド内のオブジェクト数を取得する場合に使用します。
 
 
 
 
 ---
 
-パラメータ詳細
+## パラメータ詳細
 
 共通パラメータ
 
-user (string, 必須): データを取得する対象のユーザー名。
+- user (string, 必須): データを取得する対象のユーザー名。
 
-path (string, 必須): 取得したいファイルやデータのパス。
+- path (string, 必須): 取得したいファイルやデータのパス。
 
 
 オプションパラメータ
@@ -118,7 +118,7 @@ num_of_obj (boolean): フィールド内のオブジェクト数を取得する�
 
 ---
 
-使用例
+## 使用例
 
 1. GET リクエストの例
 
@@ -126,14 +126,14 @@ num_of_obj (boolean): フィールド内のオブジェクト数を取得する�
 
 リクエスト:
 
-GET /get/john_doe/data.json?feeld=id
+GET `/get/john_doe/data.json?feeld=id`
 
 レスポンス:
-
+```
 {
   "id": 12345
 }
-
+```
 
 ---
 
@@ -141,17 +141,17 @@ GET /get/john_doe/data.json?feeld=id
 
 リクエスト:
 
-GET /get/john_doe/data.json?feeld=phone_numbers.type
+GET `/get/john_doe/data.json?feeld=phone_numbers.type`
 
 レスポンス:
-
+```
 {
   "phone_numbers": [
     { "type": "home" },
     { "type": "work" }
   ]
 }
-
+```
 
 ---
 
@@ -159,17 +159,17 @@ GET /get/john_doe/data.json?feeld=phone_numbers.type
 
 リクエスト:
 
-GET /get/john_doe/data.json?feeld=address&rng=3-4
+GET `/get/john_doe/data.json?feeld=address&rng=3-4`
 
 レスポンス:
-
+```
 {
   "address": {
     "state": "CA",
     "postal_code": "90001"
   }
 }
-
+```
 
 ---
 
@@ -180,80 +180,80 @@ GET /get/john_doe/data.json?feeld=address&rng=3-4
 リクエスト:
 
 POST /get
-Content-Type: application/json
+Content-Type: `application/json`
 
 リクエストボディ:
-
+```
 {
   "user": "john_doe",
   "path": "data.json",
   "feeld": ["id"]
 }
-
+```
 レスポンス:
-
+```
 {
   "id": 12345
 }
-
+```
 
 ---
 
 取得例2: 複数フィールドの取得
 
 リクエストボディ:
-
+```
 {
   "user": "john_doe",
   "path": "data.json",
   "feeld": ["id", "name", "email"]
 }
-
+```
 レスポンス:
-
+```
 {
   "id": 12345,
   "name": "John Doe",
   "email": "johndoe@example.com"
 }
-
+```
 
 ---
 
 取得例3: ネストされたフィールドの取得
 
 リクエストボディ:
-
+```
 {
   "user": "john_doe",
   "path": "data.json",
   "feeld": ["preferences.contact_method"]
 }
-
+```
 レスポンス:
-
+```
 {
   "preferences": {
     "contact_method": "email"
   }
 }
-
+```
 
 ---
 
 取得例4: 範囲指定での取得
 
 リクエストボディ:
-
+```
 {
   "user": "john_doe",
   "path": "data.json",
   "feeld": ["phone_numbers"],
   "rng": "1-1"
 }
-
+```
 レスポンス:
-
+```
 {
   "phone_numbers": [
     {
@@ -262,33 +262,33 @@ Content-Type: application/json
     }
   ]
 }
-
+```
 
 ---
 
 取得例5: オブジェクト数の取得
 
 リクエストボディ:
-
+```
 {
   "user": "john_doe",
   "path": "data.json",
   "feeld": ["phone_numbers"],
   "num_of_obj": true
 }
-
+```
 レスポンス:
-
+```
 {
   "num_of_obj": 2
 }
-
+```
 
 ---
 
-エラー処理とセキュリティ
+## エラー処理とセキュリティ
 
-エラー処理
+### エラー処理
 
 404 Not Found or Unauthorized:
 
@@ -312,7 +312,7 @@ Content-Type: application/json
 
 
 
-セキュリティ
+### セキュリティ
 
 ファイルの存在を秘匿:
 
@@ -340,7 +340,7 @@ JSON形式でのクエリ送信の推奨:
 
 ---
 
-注意事項
+## 注意事項
 
 feeld パラメータについて:
 
@@ -371,7 +371,7 @@ trueを指定すると、指定したフィールド内のオブジェクト数�
 
 ---
 
-レスポンス形式
+## レスポンス形式
 
 バイナリデータ:
 
@@ -380,7 +380,7 @@ trueを指定すると、指定したフィールド内のオブジェクト数�
 
 JSONデータ:
 
-Content-Type: application/json
+Content-Type: `application/json`
 
 フィールドの指定や範囲の指定に応じて、JSON形式でデータが返されます。
 
@@ -389,7 +389,7 @@ Content-Type: application/json
 
 ---
 
-まとめ
+## まとめ
 
 GET リクエスト:
 

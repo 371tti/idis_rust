@@ -114,7 +114,7 @@ impl Processor {
     }
 
     pub fn endpoint() {
-        // エンドポイント郡
+        // 内部エンドポイント郡
     }
 
     pub fn build() {

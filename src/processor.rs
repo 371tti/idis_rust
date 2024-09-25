@@ -11,29 +11,30 @@ use crate::{
 
 pub struct Processor {
     pub app: web::Data<AppMod>,
-    pub userRUID: u128,
-    pub user_data: UserData,
+    pub user_ruid: u128,
     pub result: Option<Value>,
     pub request: HttpRequest,
     pub session_id: Vec<u8>,
     pub status: u32,
+    pub stage: u32,
 }
 
 impl Processor {
     pub fn new(app: web::Data<AppMod>, req: HttpRequest) -> Self {
         Self {
             app: app,
-            userRUID: 0,
-            user_data: UserData::default(),
+            user_ruid: 0,
             result: None,
             request: req,
             session_id: Vec::new(),
             status: 100,
+            stage: 0,
         }
     }
 
     pub fn session_check(&mut self) -> &mut Self {
         let result: Result<(), Box<dyn Error>> = (|| {
+            self.stage = 1;
         // クッキーから session_id を取得
         if let Some(session_id) = self.request.cookie("session_id") {
             // session_id を base64 から Vec<u8> に変換
@@ -50,8 +51,7 @@ impl Processor {
                         // ユーザー情報を取得
                         let user_data = self.app.user.get(&user_ruid)?;
                         // 情報をステートにコピー
-                        self.userRUID = user_ruid;
-                        self.user_data = user_data;
+                        self.user_ruid = user_ruid;
                         self.session_id = session_vec;
                         return Ok(());
                     } else {
@@ -78,8 +78,7 @@ impl Processor {
             &vec![0u128],
         )?;
         // 情報をステートにコピー
-        self.user_data = self.app.user.get(&guest_user_ruid.to_u128())?;
-        self.userRUID = guest_user_ruid.to_u128();
+        self.user_ruid = guest_user_ruid.to_u128();
         self.session_id = new_session_vec;
 
         return Ok(());
@@ -89,10 +88,9 @@ impl Processor {
         if self.session_id.is_empty() == false {
             self.app.session.unset(self.session_id.clone()).unwrap_or_default();
         }
-        if self.userRUID != 0 {
-            self.app.user.remove(&self.userRUID).unwrap_or_default();
+        if self.user_ruid != 0 {
+            self.app.user.remove(&self.user_ruid).unwrap_or_default();
         }
-        self.user_data = UserData::default();
 
         // Err返す
         self.result = Some(
@@ -105,7 +103,8 @@ impl Processor {
     self
     }
 
-    pub fn parsing() {
+    pub fn parsing(&mut self) {
+        self.stage = 2;
         // jsonクエリにリクエストを解析変換
     }
 

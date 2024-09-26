@@ -5,36 +5,28 @@ use actix_web::{web::{self, Json}, HttpRequest, HttpResponse};
 use serde_json::{json, Value};
 
 use crate::{
-    utils::{api::user::UserData, json_f},
+    utils::{api::user::UserData, json_f, state::State},
     AppMod,
 };
 
 pub struct Processor {
     pub app: web::Data<AppMod>,
-    pub user_ruid: u128,
-    pub result: Option<Value>,
     pub request: HttpRequest,
-    pub session_id: Vec<u8>,
-    pub status: u32,
-    pub stage: u32,
+    pub state: State,
 }
 
 impl Processor {
     pub fn new(app: web::Data<AppMod>, req: HttpRequest) -> Self {
         Self {
             app: app,
-            user_ruid: 0,
-            result: None,
             request: req,
-            session_id: Vec::new(),
-            status: 100,
-            stage: 0,
+            state: State::new(),
         }
     }
 
     pub fn session_check(&mut self) -> &mut Self {
         let result: Result<(), Box<dyn Error>> = (|| {
-            self.stage = 1;
+            self.state.stage = 1;
         // クッキーから session_id を取得
         if let Some(session_id) = self.request.cookie("session_id") {
             // session_id を base64 から Vec<u8> に変換

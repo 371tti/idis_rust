@@ -44,16 +44,3 @@ pub fn db_user_system(account_type: i32, id: &str, name: &str, password: &str, r
          })
 }
 
-pub fn state_request(url: &str, query: Value, method: &str, body: &impl Serialize, referer: &Option<&str>) -> Value {
-    let body_value = to_value(body).ok(); // 失敗した場合はNoneを返す
-
-    json!({
-        "url": url,
-        "url-query": query,
-        "method": method,
-        "body": body_value,  // Noneの場合はnullとして出力される
-        "referer": referer,
-        "content-type": content_type,
-    })
-}
-

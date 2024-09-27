@@ -4,6 +4,7 @@ use actix_web::{http::Method, web::{self, Json}, HttpRequest, HttpResponse};
 
 use serde_json::{json, Value};
 
+
 use crate::{
     utils::{api::user::UserData, json_f, state::State},
     AppMod,
@@ -31,6 +32,8 @@ impl Processor {
     pub fn analyze(&mut self, req: HttpRequest) -> &mut Self {
         self.state.stage = 1;
         let method = req.method().as_str();
+
+        // くそでかpostリクエストの場合クラスタリングをしないようにlock
         if method == "POST" || method == "PUT" || method == "PATCH" {
             if let Some(content_length) = req.headers().get("Content-Length")
                 .and_then(|val| val.to_str().ok())
@@ -42,8 +45,9 @@ impl Processor {
             
         }
 
+        // クッキーの解析
         if let Some(session_id) = req.cookie("session_id") {
-            if let Ok(session_vec) = self.app.session.base64_to_vec(session_id) {
+            if let Ok(session_vec) = self.app.session.base64_to_vec(&session_id.to_string()) {
                 self.state.session_id = Some(session_vec);
             } else {
                 self.state.session_id = None;
@@ -52,15 +56,28 @@ impl Processor {
             self.state.session_id = None;
         }
 
+        // ヘッダ郡の解析
         let url = req.uri().to_string();
         let referer: Option<&str> = req.headers().get("Referer")
             .and_then(|val| val.to_str().ok());
         let qery = json!(web::Query::<HashMap<String, String>>::from_query(req.query_string())
             .unwrap_or_else(|_| web::Query(HashMap::new()))
             .into_inner());
+        let user_agent_str = req
+            .headers()
+            .get("User-Agent")
+            .and_then(|val| val.to_str().ok())
+            .unwrap_or("");
+        let ua = UserAgent::new(user_agent_str);
+        let user_agent = json!({
+            "browser": ua.b
+        });
 
+        self.state.reqest.method = method.to_string();
+        self.state.reqest.path = req.path().to_string();
+        self.state.reqest.url_query = qery;
+        self.state.reqest.user_agent
 
-        self.state.result = Some(json_f::state_request(&url, qery, method, &Vec::new(), &referer));
 
         self
         // jsonクエリにリクエストを解析変換

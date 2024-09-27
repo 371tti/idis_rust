@@ -4,7 +4,6 @@ cookieを使います。
 
 idisのセッション管理は複数ログインを可能にするため、セッションとユーザーセッションを分離して保持します。
 
-
 ## session
 
 src/utils/api/session.rs
@@ -71,7 +70,6 @@ pub struct User {
 }
 
 ```
-
 
 user sessionとして `User.users`に全セッションが保管されます
 

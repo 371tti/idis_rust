@@ -1,9 +1,13 @@
-use std::{collections::HashMap, error::Error, ptr::metadata};
+use std::{collections::{HashMap, HashSet}, error::Error};
 
-use actix_web::{http::Method, web::{self, Json}, HttpRequest, HttpResponse};
+use actix_web::{cookie::time::format_description::well_known::iso8601::Config, http::Method, web::{self, Json}, HttpRequest, HttpResponse};
 
+use base64::engine::general_purpose;
+use base64::Engine;
+use mime_guess::Mime;
 use serde_json::{json, Value};
 
+use woothee::parser::Parser;
 
 use crate::{
     utils::{api::user::UserData, json_f, state::State},
@@ -25,15 +29,12 @@ impl Processor {
         }
     }
 
-
-
-
-
+    
     pub fn analyze(&mut self, req: HttpRequest) -> &mut Self {
         self.state.stage = 1;
         let method = req.method().as_str();
-
-        // くそでかpostリクエストの場合クラスタリングをしないようにlock
+    
+        // 大きなPOSTリクエストの場合クラスタリングをしないようにlock
         if method == "POST" || method == "PUT" || method == "PATCH" {
             if let Some(content_length) = req.headers().get("Content-Length")
                 .and_then(|val| val.to_str().ok())
@@ -41,10 +42,8 @@ impl Processor {
             {
                 self.lock_this_server = content_length > self.app.config.server_cluster_lock_content_len;
             }
-        } else if method == "GET" {
-            
         }
-
+    
         // クッキーの解析
         if let Some(session_id) = req.cookie("session_id") {
             if let Ok(session_vec) = self.app.session.base64_to_vec(&session_id.to_string()) {
@@ -55,70 +54,127 @@ impl Processor {
         } else {
             self.state.session_id = None;
         }
+    
+        // Authorizationヘッダーの解析
+        if let Some(auth_header) = req.headers().get("Authorization") {
+            if let Ok(base64_key) = auth_header.to_str() {
+                if let Ok(decoded_key) = general_purpose::STANDARD.decode(base64_key.trim()) {
+                    self.state.api_key = Some(decoded_key);
+                } else {
+                    self.state.api_key = None;  // デコードに失敗した場合
+                }
+            } else {
+                self.state.api_key = None;  // 文字列に変換できなかった場合
+            }
+        } else {
+            self.state.api_key = None;  // Authorizationヘッダーが存在しない場合
+        }
 
         // ヘッダ郡の解析
-        let url = req.uri().to_string();
-        let referer: Option<&str> = req.headers().get("Referer")
-            .and_then(|val| val.to_str().ok());
+        let path = req.path().to_string();
+        let referer: Option<String> = req.headers()
+            .get("Referer")
+            .and_then(|val| val.to_str().ok())
+            .map(|s| s.to_string());
         let qery = json!(web::Query::<HashMap<String, String>>::from_query(req.query_string())
             .unwrap_or_else(|_| web::Query(HashMap::new()))
             .into_inner());
+        let user_agent;
         let user_agent_str = req
             .headers()
             .get("User-Agent")
             .and_then(|val| val.to_str().ok())
             .unwrap_or("");
-        let ua = UserAgent::new(user_agent_str);
-        let user_agent = json!({
-            "browser": ua.b
-        });
-
+        if let Some(ua) = Parser::new().parse(user_agent_str) {
+            user_agent = json!({
+                "browser_name": ua.name,
+                "browser_version": ua.version,
+                "os": ua.os,
+                "os_version": ua.os_version,
+                "category": ua.category,
+                "vendor": ua.vendor,
+                "browser_type": ua.browser_type,
+            });
+        } else {
+            user_agent = json!({});
+        }
+        let content_type = req.headers().get("Content-Type").and_then(|val| val.to_str().ok()).map(|s| s.to_string());
+        let server_support_type: Vec<Mime> = self.app.config.server_supported_content_types.clone();
+        let accept_header = req.headers()
+            .get("Accept")
+            .and_then(|val| val.to_str().ok())
+            .unwrap_or("*/*");
+        let mut accept_map: Vec<(Mime, f32)> = Vec::new();
+        for item in accept_header.split(',') {
+            let parts: Vec<&str> = item.split(';').collect();
+            let mime_str = parts[0].trim();
+            let quality = parts
+                .iter()
+                .find(|p| p.starts_with("q="))
+                .and_then(|q| q[2..].parse::<f32>().ok())
+                .unwrap_or(1.0);
+            if let Ok(mime) = mime_str.parse::<Mime>() {
+                accept_map.push((mime, quality));
+            }
+        }
+        let mut matching_types: Vec<(Mime, f32)> = Vec::new();
+        for (accepted_mime, q_value) in accept_map {
+            for supported_mime in &server_support_type {
+                if accepted_mime == *supported_mime
+                    || (accepted_mime.type_() == "*" && accepted_mime.subtype() == "*")
+                    || (accepted_mime.type_() == supported_mime.type_() && accepted_mime.subtype() == "*")
+                {
+                    if !matching_types.iter().any(|(m, _)| m == supported_mime) {
+                        matching_types.push((supported_mime.clone(), q_value));
+                    }
+                }
+            }
+        }
+        let accept_type: Vec<String> = matching_types
+            .into_iter()
+            .map(|(mime, _)| mime.to_string())
+            .collect();
+    
+        // リクエストの各種データを保存
         self.state.reqest.method = method.to_string();
-        self.state.reqest.path = req.path().to_string();
+        self.state.reqest.path = path;
         self.state.reqest.url_query = qery;
-        self.state.reqest.user_agent
-
-
+        self.state.reqest.user_agent = user_agent;
+        self.state.reqest.content_type = content_type;
+        self.state.reqest.referer = referer;
+        self.state.reqest.accept = json!(accept_type);
+    
         self
         // jsonクエリにリクエストを解析変換
     }
-
-
-
+    
 
 
 
 
     pub fn session_check(&mut self) -> &mut Self {
         let result: Result<(), Box<dyn Error>> = (|| {
-            self.state.stage = 2;
-        // クッキーから session_id を取得
-        if let Some(session_id) = self.request.cookie("session_id") {
-            // session_id を base64 から Vec<u8> に変換
-            if let Ok(session_vec) = self.app.session.base64_to_vec(&session_id.to_string()) {
-                // session_vec の長さを確認
-                if self.app.config.session_len_byte == session_vec.len() {
-                    // ユーザーセッションが存在するか確認
-                    if let Some(user_ruid) = self.app.session.user(session_vec.clone())? {
-                        // 最終アクセス時間を更新
-                        self.app
-                            .session
-                            .update_last_access_time(session_vec.clone())?;
-                        self.app.user.update_last_access_time(&user_ruid)?;
-                        // ユーザー情報を取得
-                        let user_data = self.app.user.get(&user_ruid)?;
-                        // 情報をステートにコピー
-                        self.state.user_ruid = user_ruid;
-                        self.state.session_id = session_vec;
-                        return Ok(());
-                    } else {
-                        // ユーザーセッションがない場合
-                    }
+        self.state.stage = 2;
+        if let Some(session_vec) = self.state.session_id.clone() {
+            // session_vec の長さを確認
+            if self.app.config.session_len_byte == session_vec.len() {
+                // ユーザーセッションが存在するか確認
+                if let Some(user_ruid) = self.app.session.user(session_vec.clone())? {
+                    // 最終アクセス時間を更新
+                    self.app
+                        .session
+                        .update_last_access_time(session_vec.clone())?;
+                    self.app.user.update_last_access_time(&user_ruid)?;
+                    // ユーザー情報を取得
+                    let user_data = self.app.user.get(&user_ruid)?;
+                    // 情報をステートにコピー
+                    self.state.user_ruid = format!("{:x}", user_ruid);
+                    return Ok(());
                 } else {
-                    // session_vec の長さが無効な場合の処理
+                    // ユーザーセッションがない場合
                 }
             } else {
-                // base64 のフォーマットが無効な場合の処理
+                // session_vec の長さが無効な場合の処理
             }
         } else {
             // セッションを持ってない
@@ -135,25 +191,21 @@ impl Processor {
             &vec![0u128],
         )?;
         // 情報をステートにコピー
-        self.state.user_ruid = guest_user_ruid.to_u128();
-        self.state.session_id = new_session_vec;
+        self.state.user_ruid = format!("{:x}", guest_user_ruid.to_u128());
+        self.state.session_id = Some(new_session_vec);
 
         return Ok(());
     })();
     if let Err(e) = result {
         // ロールバック処理
-        if self.session_id.is_empty() == false {
-            self.app.session.unset(self.session_id.clone()).unwrap_or_default();
+        if let Some(session_id) = self.state.session_id.clone() {
+            self.app.session.unset(session_id).unwrap_or_default();
         }
-        if self.user_ruid != 0 {
-            self.app.user.remove(&self.user_ruid).unwrap_or_default();
+        if self.state.user_ruid != "" {
+            self.app.user.remove( &u128::from_str_radix(&self.state.user_ruid, 16).unwrap_or(0)).unwrap_or_default();
         }
 
-        // Err返す
-        self.result = Some(
-            json_f::err(1, 500, "Exception in session handling.")
-        );
-        self.status = 500;
+        self.state.status = 500;
 
     } else {
     }
@@ -162,17 +214,17 @@ impl Processor {
 
 
 
-    pub fn auth() {
-        // 権限確認
-    }
+    // pub fn auth() {
+    //     // 権限確認
+    // }
 
-    pub fn endpoint() {
-        // 内部エンドポイント郡
-    }
+    // pub fn endpoint() {
+    //     // 内部エンドポイント郡
+    // }
 
-    pub fn build() {
-        // リクエストビルダー
-    }
+    // pub fn build() {
+    //     // リクエストビルダー
+    // }
 
 
 }

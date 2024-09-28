@@ -1,6 +1,9 @@
 
+use std::collections::HashSet;
+
 use bytes::buf::UninitSlice;
 use chrono::Duration;
+use mime_guess::{mime, Mime};
 use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 
@@ -16,6 +19,7 @@ pub struct AppConfig {
     pub server_cluster_enable: bool,
     pub server_cluster_lock_content_len: u64,
     pub server_id: u16,
+    pub server_supported_content_types: Vec<Mime>,
     pub mongoDB_addr: String,
     pub mongoDB_name: String,
     pub session_life_time_server: Duration,
@@ -39,6 +43,7 @@ impl AppConfig {
             server_cluster_enable: false,
             server_cluster_lock_content_len: 1024,
             server_id: 0xffff,
+            server_supported_content_types: AppConfig::supported_content_types(),
             mongoDB_addr: "mongodb://192.168.0.48:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.2.5".to_string(),
             mongoDB_name: "Idis-rust-dev".to_string(),
             session_life_time_server: Duration::days(365),
@@ -49,5 +54,19 @@ impl AppConfig {
             ruid_rng: ChaCha20Rng::from_entropy(),
         };
         app_config
+    }
+
+    fn supported_content_types() -> Vec<Mime> {
+        let mut content_types = Vec::new();
+        content_types.push(mime::TEXT_PLAIN);
+        content_types.push(mime::TEXT_HTML);
+        content_types.push(mime::TEXT_CSS);
+        content_types.push(mime::TEXT_JAVASCRIPT);
+        content_types.push(mime::TEXT_XML);
+        content_types.push(mime::APPLICATION_JSON);
+        content_types.push(mime::APPLICATION_OCTET_STREAM);
+        content_types.push(mime::IMAGE_JPEG);
+        content_types.push(mime::IMAGE_PNG);
+        content_types
     }
 }

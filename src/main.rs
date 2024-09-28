@@ -2,6 +2,7 @@ use actix_web::{get, web, App, HttpServer, Responder, middleware::Logger, HttpRe
 use env_logger::Env;
 use utils::api::mongo_client::MongoClient;
 use utils::api::user::User;
+use utils::state;
 
 use std::f64::consts;
 use std::{clone, string};
@@ -33,9 +34,11 @@ use crate::processor::Processor;
 
 #[get("/")]
 async fn index(app: web::Data<AppMod>, req: HttpRequest) -> impl Responder {
-    let mut state = Processor::new(app, req);
-
-    return "asas";
+    let mut state = Processor::new(app.clone());
+    state.analyze(req.clone());
+    state.session_check();
+    println!("{}", json!(state.state));
+    return  app.json_api.stream(json!(state.state)).send(req).await
 }
 
 // #[get("/s")]
@@ -89,7 +92,7 @@ impl AppMod {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // ロガーの初期化
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    env_logger::init_from_env(Env::default().default_filter_or("debug"));
 
     let app_config = AppConfig::new();
 
@@ -99,7 +102,8 @@ async fn main() -> std::io::Result<()> {
     let app_mod_instance = AppMod::new(app_config.clone()).await;
 
     // `AppMod` のインスタンスを `Arc` でラップし、`web::Data` に渡す
-    let app_mod = web::Data::new(Arc::new(app_mod_instance));
+    let app_mod = web::Data::new(app_mod_instance);
+
 
     // サーバーの設定
     let server = HttpServer::new(move || {

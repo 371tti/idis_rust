@@ -7,9 +7,10 @@ use serde_json::{json, Value};
 
 #[derive(Serialize)]
 pub struct State {
-    pub user_ruid: u128, // user id
-    pub user_perm: Vec<u128>, // user permission list
+    pub user_ruid: String, // user id
+    pub user_perm: Vec<String>, // user permission list
     pub session_id: Option<Vec<u8>>, // session id
+    pub api_key: Option<Vec<u8>>,
     pub status: u32, // status like http status code
     pub stage: u32, // 0: instance, 1: session, 2: parsing, 3: auth, 4: processing, 5: build
     pub reqest: Request,
@@ -18,9 +19,10 @@ pub struct State {
 impl State {
     pub fn new() -> Self {
         Self {
-            user_ruid: 0,
+            user_ruid: "".to_string(),
             user_perm: Vec::new(),
             session_id: None,
+            api_key: None,
             status: 100,
             stage: 0,
             reqest: Request::new(),
@@ -33,9 +35,9 @@ impl State {
 pub struct Request {
     pub path: String,
     pub method: String,
-    pub url_query: Value,  // Option型として不確定ヘッダ
+    pub url_query: Value,
     pub user_agent: Value,
-    pub referer: Option<String>,   // Option<String>で参照を持たない
+    pub referer: Option<String>,
     pub content_type: Option<String>,
     pub accept: Value,
 }

@@ -9,8 +9,9 @@ use serde_json::{json, Value};
 pub struct State {
     pub user_ruid: String, // user id
     pub user_perm: Vec<String>, // user permission list
-    pub session_id: Option<Vec<u8>>, // session id
-    pub api_key: Option<Vec<u8>>,
+    pub cookies: Value,
+    pub session_id: Option<String>,
+    pub api_key: Option<String>,
     pub status: u32, // status like http status code
     pub stage: u32, // 0: instance, 1: session, 2: parsing, 3: auth, 4: processing, 5: build
     pub reqest: Request,
@@ -21,6 +22,7 @@ impl State {
         Self {
             user_ruid: "".to_string(),
             user_perm: Vec::new(),
+            cookies: json!({}),
             session_id: None,
             api_key: None,
             status: 100,

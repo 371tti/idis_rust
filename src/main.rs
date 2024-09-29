@@ -37,7 +37,6 @@ async fn index(app: web::Data<AppMod>, req: HttpRequest) -> impl Responder {
     let mut state = Processor::new(app.clone());
     state.analyze(req.clone());
     state.session_check();
-    println!("{}", json!(state.state));
     return  app.json_api.stream(json!(state.state)).send(req).await
 }
 

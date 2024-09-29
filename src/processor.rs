@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use woothee::parser::Parser;
 
 use crate::{
-    utils::{api::user::UserData, json_f, state::State},
+    utils::{api::user::{self, UserData}, json_f, state::State},
     AppMod,
 };
 
@@ -45,24 +45,18 @@ impl Processor {
         }
     
         // クッキーの解析
-        if let Some(session_id) = req.cookie("session_id") {
-            if let Ok(session_vec) = self.app.session.base64_to_vec(&session_id.to_string()) {
-                self.state.session_id = Some(session_vec);
-            } else {
-                self.state.session_id = None;
+        let mut cookies_map: HashMap<String, String> = HashMap::new();     
+        if let Ok(cookies) = req.cookies() {
+            for cookie in cookies.iter() {
+                cookies_map.insert(cookie.name().to_string(), cookie.value().to_string());
             }
-        } else {
-            self.state.session_id = None;
         }
+        self.state.cookies = json!(cookies_map);
     
         // Authorizationヘッダーの解析
         if let Some(auth_header) = req.headers().get("Authorization") {
-            if let Ok(base64_key) = auth_header.to_str() {
-                if let Ok(decoded_key) = general_purpose::STANDARD.decode(base64_key.trim()) {
-                    self.state.api_key = Some(decoded_key);
-                } else {
-                    self.state.api_key = None;  // デコードに失敗した場合
-                }
+            if let Ok(key) = auth_header.to_str() {
+                self.state.api_key = Some(key.to_string());
             } else {
                 self.state.api_key = None;  // 文字列に変換できなかった場合
             }
@@ -155,26 +149,33 @@ impl Processor {
     pub fn session_check(&mut self) -> &mut Self {
         let result: Result<(), Box<dyn Error>> = (|| {
         self.state.stage = 2;
-        if let Some(session_vec) = self.state.session_id.clone() {
-            // session_vec の長さを確認
-            if self.app.config.session_len_byte == session_vec.len() {
-                // ユーザーセッションが存在するか確認
-                if let Some(user_ruid) = self.app.session.user(session_vec.clone())? {
-                    // 最終アクセス時間を更新
-                    self.app
-                        .session
-                        .update_last_access_time(session_vec.clone())?;
-                    self.app.user.update_last_access_time(&user_ruid)?;
-                    // ユーザー情報を取得
-                    let user_data = self.app.user.get(&user_ruid)?;
-                    // 情報をステートにコピー
-                    self.state.user_ruid = format!("{:x}", user_ruid);
-                    return Ok(());
+        if let Some(session_id_str) = self.state.cookies.get("session_id") {
+            // session_id_strをVecに変換
+            if let Ok(session_vec) = self.app.session.base64_to_vec(&session_id_str.to_string()) {
+                // session_vec の長さを確認
+                if self.app.config.session_len_byte == session_vec.len() {
+                    // ユーザーセッションが存在するか確認
+                    if let Some(user_ruid) = self.app.session.user(session_vec.clone())? {
+                        // 最終アクセス時間を更新
+                        self.app
+                            .session
+                            .update_last_access_time(session_vec.clone())?;
+                        self.app.user.update_last_access_time(&user_ruid)?;
+                        // ユーザー情報を取得
+                        let user_data = self.app.user.get(&user_ruid)?;
+                        // 情報をステートにコピー
+                        self.state.user_ruid = format!("{:x}", user_ruid);
+                        self.state.session_id = Some(session_id_str.to_string());
+                        self.state.user_perm = user_data.perm.iter().map(|&num| format!("{:x}", num)).collect();
+                        return Ok(());
+                    } else {
+                        // ユーザーセッションがない場合
+                    }
                 } else {
-                    // ユーザーセッションがない場合
+                    // session_vec の長さが無効な場合の処理
                 }
             } else {
-                // session_vec の長さが無効な場合の処理
+
             }
         } else {
             // セッションを持ってない
@@ -183,23 +184,27 @@ impl Processor {
         // セッションを生成
         let new_session_vec = self.app.session.set()?;
         // ユーザーセッションを生成
-        let guest_user_ruid = self.app.ruid.generate(0x0000, None);
+        let guest_user_ruid = self.app.ruid.generate(self.app.config.ruid_prefix.USER_EXAMPLE_ID, None);
+        let everyoune_permission : u128 = (self.app.config.ruid_prefix.USER_EXAMPLE_ID as u128) << 112;
         self.app.user.set(
             &guest_user_ruid.to_u128(),
             &format!("@guest{}", guest_user_ruid.to_string()),
             &0,
-            &vec![0u128],
+            &vec![everyoune_permission],
         )?;
         // 情報をステートにコピー
         self.state.user_ruid = format!("{:x}", guest_user_ruid.to_u128());
-        self.state.session_id = Some(new_session_vec);
-
+        self.state.session_id = Some(self.app.session.vec_to_base64(new_session_vec));
+        let user_data = self.app.user.get(&guest_user_ruid.to_u128())?;
+        self.state.user_perm = user_data.perm.iter().map(|&num| format!("{:x}", num)).collect();
         return Ok(());
     })();
     if let Err(e) = result {
         // ロールバック処理
-        if let Some(session_id) = self.state.session_id.clone() {
-            self.app.session.unset(session_id).unwrap_or_default();
+        if let Some(session_id_str) = self.state.session_id.clone() {
+            if let Ok(session_vec) = self.app.session.base64_to_vec(&session_id_str) {
+                self.app.session.unset(session_vec).unwrap_or_default();
+            }
         }
         if self.state.user_ruid != "" {
             self.app.user.remove( &u128::from_str_radix(&self.state.user_ruid, 16).unwrap_or(0)).unwrap_or_default();
@@ -222,9 +227,9 @@ impl Processor {
     //     // 内部エンドポイント郡
     // }
 
-    // pub fn build() {
-    //     // リクエストビルダー
-    // }
+    pub fn build() {
+        // リクエストビルダー
+    }
 
 
 }

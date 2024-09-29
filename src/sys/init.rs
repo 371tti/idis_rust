@@ -28,6 +28,7 @@ pub struct AppConfig {
     pub session_default_capacity: usize,
     pub session_rng: ChaCha20Rng,
     pub ruid_rng: ChaCha20Rng,
+    pub ruid_prefix: Ruid_prefix_templates,
 }
 
 impl AppConfig {
@@ -52,6 +53,7 @@ impl AppConfig {
             session_default_capacity: 100000,
             session_rng: ChaCha20Rng::from_entropy(),
             ruid_rng: ChaCha20Rng::from_entropy(),
+            ruid_prefix: Ruid_prefix_templates::new(),
         };
         app_config
     }
@@ -68,5 +70,24 @@ impl AppConfig {
         content_types.push(mime::IMAGE_JPEG);
         content_types.push(mime::IMAGE_PNG);
         content_types
+    }
+
+
+}
+
+#[derive(Clone)]
+pub struct Ruid_prefix_templates {
+    pub USER_ID: u16,
+    pub USER_EXAMPLE_ID: u16,
+    pub PERM_EVERYONE: u16,
+}
+
+impl  Ruid_prefix_templates {
+    pub fn new() -> Self {
+        Self {
+            USER_ID: 0x2101,
+            USER_EXAMPLE_ID: 0x2100,
+            PERM_EVERYONE: 0x2201,
+        }
     }
 }

@@ -1,23 +1,25 @@
 use std::sync::Mutex;
 use std::collections::HashMap;
 
+use actix_web::web::Json;
 use chrono::Utc;
+use serde_json::json;
 
 use crate::sys::init::AppConfig;
 use crate::utils::api::mongo_client::MongoClient;
 
 #[derive(Clone, Default)]
 pub struct UserData {
-    user_id: String,
-    account_level: i32,
-    perm: Vec<u128>,
-    latest_access_time: u64, // UTCのミリ秒を格納
+    pub user_id: String,
+    pub account_level: i32,
+    pub perm: Vec<u128>,
+    pub latest_access_time: u64, // UTCのミリ秒を格納
 }
 
 pub struct User {
-    users: Mutex<HashMap<u128, Option<UserData>>>,
-    id_to_ruid: Mutex<HashMap<String, u128>>,
-    db: MongoClient,
+    pub users: Mutex<HashMap<u128, Option<UserData>>>,
+    pub id_to_ruid: Mutex<HashMap<String, u128>>,
+    pub db: MongoClient,
 }
 
 impl User {
@@ -32,7 +34,7 @@ impl User {
     pub fn update_last_access_time(&self, ruid: &u128) -> Result<(), String> {
         // ロック取得時のエラーハンドリング
         let mut users = self.users.lock().map_err(|_| "Failed to acquire lock on users data.".to_string())?;
-        
+
         // UTCの現在時刻をミリ秒で取得
         let latest_access_time = Utc::now().timestamp_millis() as u64;
 
@@ -50,7 +52,6 @@ impl User {
         // ロック取得時のエラーハンドリング
         let mut users = self.users.lock().map_err(|_| "Failed to acquire lock on users data.".to_string())?;
         let mut id_to_ruid = self.id_to_ruid.lock().map_err(|_| "Failed to acquire lock on id_to_ruid data.".to_string())?;
-        
         // UTCの現在時刻をミリ秒で取得
         let latest_access_time = Utc::now().timestamp_millis() as u64;
 
@@ -96,6 +97,7 @@ impl User {
     }
 
     pub fn get(&self, ruid: &u128) -> Result<UserData, String> {
+        // ロックを取得
         let users = self.users.lock().map_err(|_| "Failed to acquire lock on users data.".to_string())?;
 
         // ユーザーが存在すればそれを返し、存在しなければデフォルト値を返す
@@ -104,8 +106,10 @@ impl User {
                 return Ok(user_data.clone()); // クローンを返す
             }
         }
+        
         // ユーザーセッションが解放されている場合
         Ok(UserData::default()) // 存在しない場合はデフォルト値を返す
     }
+    
 
 }

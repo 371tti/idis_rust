@@ -100,9 +100,14 @@ The RUID (Readable Unique Identifier) is a proprietary format used by idis to id
 - **0x20**
 
   - `0x2000` - Uncategorized Meta Data
-- **0x21**
+- **0x21**: user id
 
-  - `0x2100` - User Docment
+  - `0x2100` - example user id
+  - `0x2101` - user id
+- **0x22**: permission id
+
+  - `0x2200` - Uncategorized permission id
+  - `0x2201` - EVERYONE PERMISSION
 
 #### 0x3***: Log Data
 

@@ -9,17 +9,17 @@ use crate::sys::init::AppConfig;
 
 #[derive(Clone)]
 pub struct SessionData {
-    last_access_time: u64,
-    generated_time: u64,
-    users: Vec<u128>,
+    pub last_access_time: u64,
+    pub generated_time: u64,
+    pub users: Vec<u128>,
 }
 
 pub struct Session {
-    sessions: Mutex<HashMap<Vec<u8>, SessionData>>,
-    len: usize,
-    life_time_server: Duration,
-    life_time_client: Duration,
-    rng: Mutex<ChaCha20Rng>,
+    pub sessions: Mutex<HashMap<Vec<u8>, SessionData>>,
+    pub len: usize,
+    pub life_time_server: Duration,
+    pub life_time_client: Duration,
+    pub rng: Mutex<ChaCha20Rng>,
 }
 
 impl Session {

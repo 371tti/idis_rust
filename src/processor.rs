@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, HashSet}, error::Error};
 
-use actix_web::{cookie::time::format_description::well_known::iso8601::Config, http::Method, web::{self, Json}, HttpRequest, HttpResponse};
+use actix_web::{cookie::{time::format_description::well_known::iso8601::Config, Cookie}, dev::Response, http::{Method, StatusCode}, web::{self, Json}, HttpRequest, HttpResponse};
 
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -30,7 +30,7 @@ impl Processor {
     }
 
     
-    pub fn analyze(&mut self, req: HttpRequest) -> &mut Self {
+    pub async fn analyze(&mut self, req: HttpRequest) -> &mut Self {
         self.state.stage = 1;
         let method = req.method().as_str();
     
@@ -146,16 +146,18 @@ impl Processor {
 
 
 
-    pub fn session_check(&mut self) -> &mut Self {
-        let result: Result<(), Box<dyn Error>> = (|| {
+    pub async fn session_check(&mut self) -> &mut Self {
         self.state.stage = 2;
-        if let Some(session_id_str) = self.state.cookies.get("session_id") {
+        let result: Result<(), Box<dyn Error>> = (|| {
+        if let Some(session_id_str) = self.state.cookies.get("session_id").and_then(|v| v.as_str()) {
+            println!("{}", session_id_str);
             // session_id_strをVecに変換
-            if let Ok(session_vec) = self.app.session.base64_to_vec(&session_id_str.to_string()) {
+            if let Ok(session_vec) = self.app.session.base64_to_vec(&session_id_str) {
                 // session_vec の長さを確認
                 if self.app.config.session_len_byte == session_vec.len() {
                     // ユーザーセッションが存在するか確認
                     if let Some(user_ruid) = self.app.session.user(session_vec.clone())? {
+                        println!("{}", user_ruid.to_string());
                         // 最終アクセス時間を更新
                         self.app
                             .session
@@ -170,12 +172,12 @@ impl Processor {
                         return Ok(());
                     } else {
                         // ユーザーセッションがない場合
+                        println!("waaa");
                     }
                 } else {
                     // session_vec の長さが無効な場合の処理
                 }
             } else {
-
             }
         } else {
             // セッションを持ってない
@@ -186,6 +188,7 @@ impl Processor {
         // ユーザーセッションを生成
         let guest_user_ruid = self.app.ruid.generate(self.app.config.ruid_prefix.USER_EXAMPLE_ID, None);
         let everyoune_permission : u128 = (self.app.config.ruid_prefix.USER_EXAMPLE_ID as u128) << 112;
+        self.app.session.add(new_session_vec.clone(), guest_user_ruid.to_u128())?;
         self.app.user.set(
             &guest_user_ruid.to_u128(),
             &format!("@guest{}", guest_user_ruid.to_string()),
@@ -223,13 +226,49 @@ impl Processor {
     //     // 権限確認
     // }
 
-    // pub fn endpoint() {
-    //     // 内部エンドポイント郡
-    // }
-
-    pub fn build() {
-        // リクエストビルダー
+    pub fn endpoint(&mut self) {
+        match self.state.reqest.path.as_str() {
+            "/" => {
+                // ルートの処理
+            }
+            "/debug/state" => {
+                // 
+            }
+            _ => {
+                // 404エラーなど
+            }
+        }
     }
 
+    // リクエストビルダー
+    pub async fn build(&mut self) -> HttpResponse {
+        self.state.stage = 5;
+        let result: Result<HttpResponse, Box<dyn Error>> = (|| async {
+            // 非同期処理 (await を使うためにクロージャを async にする)
+            let mut response = self.app.json_api.stream(json!(self.state)).send().await;
+                    // send の結果が Result であればエラーハンドリング
+            if response.status().is_server_error() {
+                return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to stream data")) as Box<dyn Error>);
+            }
 
+            if let Some(session_id) = &self.state.session_id {
+                let cookie = Cookie::build("session_id", session_id)
+                    .path("/")
+                    .http_only(true)
+                    .finish();
+                response.add_cookie(&cookie)?;  // クッキーを追加
+            }
+    
+            Ok(response)
+        })().await;
+    
+        // エラーが発生した場合の処理
+        match result {
+            Ok(response) => response,  // 正常にレスポンスが構築された場合
+            Err(e) => {
+                HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while building the response")
+            }
+        }
+    }
 }

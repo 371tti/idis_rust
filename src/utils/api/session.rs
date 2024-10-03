@@ -61,6 +61,7 @@ impl Session {
 
     pub fn user(&self, session_vec: Vec<u8>) -> Result<Option<u128>, String> {
         let sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+
         if let Some(session_data) = sessions.get(&session_vec) {
             Ok(session_data.users.first().copied())
         } else {

@@ -119,7 +119,7 @@ impl FileStream {
                     response = response.header(key.as_str(), value.to_str().unwrap_or("invalid header value"));
                 }
     
-                return response.inline(self.inline).send(req).await;
+                return response.inline(self.inline).send().await;
             }
         };
     
@@ -134,7 +134,7 @@ impl FileStream {
                     response = response.header(key.as_str(), value.to_str().unwrap_or("invalid header value"));
                 }
     
-                return response.inline(self.inline).send(req).await;
+                return response.inline(self.inline).send().await;
             }
         };
 

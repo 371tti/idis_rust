@@ -19,6 +19,7 @@ use std::sync::Arc;
 mod utils;
 mod sys;
 mod processor;
+mod method;
 
 use crate::utils::api::json_api::JsonApi;
 use crate::utils::api::file_api::FileApi;
@@ -35,9 +36,9 @@ use crate::processor::Processor;
 #[get("/")]
 async fn index(app: web::Data<AppMod>, req: HttpRequest) -> impl Responder {
     let mut state = Processor::new(app.clone());
-    state.analyze(req.clone());
-    state.session_check();
-    return  app.json_api.stream(json!(state.state)).send(req).await
+    state.analyze(req.clone()).await;
+    state.session_check().await;
+    return  state.build().await;
 }
 
 // #[get("/s")]
@@ -91,7 +92,7 @@ impl AppMod {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // ロガーの初期化
-    env_logger::init_from_env(Env::default().default_filter_or("debug"));
+    env_logger::init_from_env(Env::default().default_filter_or("error"));
 
     let app_config = AppConfig::new();
 

@@ -37,7 +37,7 @@ impl AppConfig {
             default_path: r"C:/".to_string(),
             streaming_chunk_size: 1 * 1024 * 1024,
             chunked_threshold_size: 16 * 1024 * 1024 * 1024,
-            server_bind: "0.0.0.0:8081".to_string(),
+            server_bind: "0.0.0.0:83".to_string(),
             server_backlog: 512,
             server_workers: 16,
             server_name_host: "idis-rust-ver0.1.0".to_string(),

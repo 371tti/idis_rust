@@ -83,7 +83,7 @@ impl JsonStream {
         self
     }
 
-    pub async fn send(self, _req: HttpRequest) -> HttpResponse {
+    pub async fn send(self) -> HttpResponse {
         // JSON データを文字列に変換
         let json_string = serde_json::to_string(&self.json_data).unwrap_or_default();
         let total_length = json_string.len() as u64;

@@ -1,9 +1,13 @@
+/*
+IDIS RUST version
+author 371tti
+
+
+*/
+
 use actix_web::{get, web, App, HttpServer, Responder, middleware::Logger, HttpResponse, HttpRequest};
 use env_logger::Env;
-use utils::api::mongo_client::MongoClient;
-use utils::api::user::User;
-use utils::state;
-
+use sys::app_set::AppSet;
 use std::f64::consts;
 use std::{clone, string};
 use std::sync::Mutex;
@@ -12,81 +16,23 @@ use std::path::PathBuf;
 use std::ptr;
 use std::sync::Arc;
 
-
-
-
-
+//  load user module
 mod utils;
 mod sys;
-mod processor;
-mod method;
+mod build_handlers;
+mod db_handlers;
+mod state_services;
 
-use crate::utils::api::json_api::JsonApi;
-use crate::utils::api::file_api::FileApi;
-
+use crate::build_handlers::json_api::JsonApi;
+use crate::build_handlers::file_api::FileApi;
 use crate::utils::ruid::Ruid;
 use crate::utils::ruid::RuidGenerator;
-
 use crate::sys::init::AppConfig;
-
-use crate::utils::api::session::Session;
-
-use crate::processor::Processor;
+use crate::state_services::session::Session;
 
 #[get("/")]
-async fn index(app: web::Data<AppMod>, req: HttpRequest) -> impl Responder {
-    let mut state = Processor::new(app.clone());
-    state.analyze(req.clone()).await;
-    state.session_check().await;
-    return  state.build().await;
-}
-
-// #[get("/s")]
-// async fn indexs(app: web::Data<AppMod>, req: HttpRequest) -> impl Responder {
-//     // ここで送信するファイルのパスを指定します。
-//     let file_path: PathBuf = PathBuf::from("nogera0.mp4");
-
-//     app.file_api.stream(file_path)
-//         .cors("*")
-//         .inline(false)
-//         .file_name("nogera.mp4")
-//         .send(req)
-//         .await
-// }
-
-
-pub struct AppMod {
-    file_api: FileApi,
-    json_api: JsonApi,
-    session: Session,
-    ruid: RuidGenerator,
-    db: MongoClient,
-    config: AppConfig,
-    user: User,
-}
-
-impl AppMod {
-    pub async fn new(app_config: AppConfig) -> Self{
-        let json_api = JsonApi::new(&app_config);
-        let ruid = RuidGenerator::new(&app_config);
-        let session = Session::new(&app_config);
-        let db = MongoClient::new(&app_config).await.expect("dbへの接続失敗　パニックなう"); // あとでエラーハンドリングする
-        
-        let file_api = FileApi::new(&app_config, &json_api);
-        let user = User::new(&app_config, &db);
-
-        let app_mod = AppMod {
-            file_api: file_api,
-            json_api: json_api,
-            session: session,
-            ruid: ruid,
-            db: db,
-            config: app_config,
-            user: user,
-        };
-
-        return app_mod;
-    }    
+async fn index(app_set: web::Data<AppSet>, req: HttpRequest) -> impl Responder {
+""
 }
 
 #[actix_web::main]
@@ -99,17 +45,17 @@ async fn main() -> std::io::Result<()> {
 
 
     // `AppMod::new` を `await` して `AppMod` のインスタンスを取得
-    let app_mod_instance = AppMod::new(app_config.clone()).await;
+    let app_set_instance = AppSet::new(app_config.clone()).await;
 
     // `AppMod` のインスタンスを `Arc` でラップし、`web::Data` に渡す
-    let app_mod = web::Data::new(app_mod_instance);
+    let app_set = web::Data::new(app_set_instance);
 
 
     // サーバーの設定
     let server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())  // リクエストのログを記録するミドルウェアを追加
-            .app_data(app_mod.clone()) // アプリケーション全体で共有
+            .app_data(app_set.clone()) // アプリケーション全体で共有
             .service(index)           // ルーティングのサービスを追加
     })
     .bind(app_config.server_bind.clone())?

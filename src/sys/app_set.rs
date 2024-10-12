@@ -3,13 +3,13 @@ use crate::{build_handlers::{file_api::FileApi, json_api::JsonApi}, db_handlers:
 use super::init::AppConfig;
 
 pub struct AppSet {
-    file_api: FileApi,
-    json_api: JsonApi,
-    session: Session,
-    ruid: RuidGenerator,
-    db: MongoClient,
-    config: AppConfig,
-    user: User,
+    pub file_api: FileApi,
+    pub json_api: JsonApi,
+    pub session: Session,
+    pub ruid: RuidGenerator,
+    pub db: MongoClient,
+    pub config: AppConfig,
+    pub user: User,
 }
 
 impl AppSet {

@@ -1,5 +1,4 @@
-use actix_web::http::uri;
-use base64::engine::general_purpose::NO_PAD;
+
 use serde::Serialize;
 use serde_json::{json, Value};
 

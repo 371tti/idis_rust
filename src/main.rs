@@ -4,6 +4,8 @@ author 371tti
 
 */
 
+use actix_web::{dev, http};
+use actix_web::middleware::ErrorHandlerResponse;
 use actix_web::{get, web, App, HttpServer, Responder, middleware::Logger, HttpResponse, HttpRequest};
 use env_logger::Env;
 use pipeline::processor::Processor;
@@ -59,6 +61,8 @@ async fn main() -> std::io::Result<()> {
     // サーバーの設定
     let server = HttpServer::new(move || {
         App::new()
+           //  .wrap(actix_web::middleware::ErrorHandlers::new().default_handler(handle_error))
+            .app_data(web::PayloadConfig::new(app_config.payload_max_size.clone())) // 最大バッファサイズを16KBに設定
             .wrap(Logger::default())  // リクエストのログを記録するミドルウェアを追加
             .app_data(app_set.clone()) // アプリケーション全体で共有
             .service(catch_all)           // ルーティングのサービスを追加

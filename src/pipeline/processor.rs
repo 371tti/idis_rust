@@ -11,6 +11,7 @@ pub struct Processor {
 
 impl Processor {
     pub fn new(app_set: web::Data<AppSet>, body_stream: web::Payload) -> Self {
+        
         Self {
             app_set: app_set,
             state: State::new(),

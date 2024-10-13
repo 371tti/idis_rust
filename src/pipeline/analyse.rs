@@ -25,7 +25,7 @@ impl Analyze for Processor {
                 .and_then(|val| val.to_str().ok())
                 .and_then(|val| val.parse::<u64>().ok())
             {
-                self.lock_this_server = content_length > self.app.config.server_cluster_lock_content_len;
+                self.lock_this_server = content_length > self.app_set.config.server_cluster_lock_content_len;
             }
         }
 
@@ -75,7 +75,7 @@ impl Analyze for Processor {
             user_agent = json!({});
         }
         let content_type = req.headers().get("Content-Type").and_then(|val| val.to_str().ok()).map(|s| s.to_string());
-        let server_support_type: Vec<Mime> = self.app.config.server_supported_content_types.clone();
+        let server_support_type: Vec<Mime> = self.app_set.config.server_supported_content_types.clone();
         let accept_header = req.headers()
             .get("Accept")
             .and_then(|val| val.to_str().ok())

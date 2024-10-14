@@ -10,7 +10,6 @@ use super::reqest_set::Request;
 pub struct State {
     pub user_ruid: String, // user id
     pub user_perm: Vec<String>, // user permission list
-    pub cookies: Value,
     pub session_id: Option<String>,
     pub api_key: Option<String>,
     pub status: u32, // status like http status code
@@ -23,7 +22,6 @@ impl State {
         Self {
             user_ruid: "".to_string(),
             user_perm: Vec::new(),
-            cookies: json!({}),
             session_id: None,
             api_key: None,
             status: 100,

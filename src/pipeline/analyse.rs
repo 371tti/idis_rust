@@ -29,15 +29,6 @@ impl Analyze for Processor {
             }
         }
 
-        // クッキー解析
-        let mut cookies_map: HashMap<String, String> = HashMap::new();
-        if let Ok(cookies) = req.cookies() {
-            for cookie in cookies.iter() {
-                cookies_map.insert(cookie.name().to_string(), cookie.value().to_string());
-            }
-        }
-        self.state.cookies = json!(cookies_map);
-
         // Authorizationヘッダーの解析
         if let Some(auth_header) = req.headers().get("Authorization") {
             if let Ok(key) = auth_header.to_str() {

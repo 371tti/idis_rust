@@ -6,7 +6,7 @@ use chrono::Utc;
 use serde_json::json;
 
 use crate::sys::init::AppConfig;
-use crate::utils::api::mongo_client::MongoClient;
+use crate::db_handlers::mongo_client::MongoClient;
 
 #[derive(Clone, Default)]
 pub struct UserData {

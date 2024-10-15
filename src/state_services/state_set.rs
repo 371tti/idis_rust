@@ -3,10 +3,8 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use super::reqest_set::Request;
+use serde::ser::{Serializer, SerializeStruct};
 
-
-
-#[derive(Serialize)]
 pub struct State {
     pub user_ruid: String, // user id
     pub user_perm: Vec<String>, // user permission list
@@ -28,5 +26,25 @@ impl State {
             stage: 0,
             reqest: Request::new(),
         }
+    }
+
+}
+
+impl Serialize for State {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("State", 9)?;
+        state.serialize_field("user_ruid", &self.user_ruid)?;
+        state.serialize_field("user_perm", &self.user_perm)?;
+        state.serialize_field("session_id", &self.session_id)?;
+        state.serialize_field("api_key", &self.api_key)?;
+        state.serialize_field("status", &self.status)?;
+        state.serialize_field("stage", &self.stage)?;
+        state.serialize_field("reqest", &self.reqest)?;
+        state.serialize_field("version", &"1.0.0")?;
+        state.serialize_field("type", &11)?;
+        state.end()
     }
 }

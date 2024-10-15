@@ -4,3 +4,4 @@ pub mod user;
 pub mod instruction_set;
 pub mod Instruction_set;
 pub mod reqest_set;
+pub mod user_agent_set;

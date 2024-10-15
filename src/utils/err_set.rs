@@ -1,4 +1,3 @@
-// sec/utils/err._set.rs
 
 // sec/utils/err_set.rs
 

@@ -124,4 +124,6 @@ impl Analyze for Processor {
 
         Ok(self)
     }
+
 }
+

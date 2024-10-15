@@ -35,3 +35,4 @@ impl Processor {
         HttpResponse::Ok().finish() // 仮のレスポンス
     }
 }
+

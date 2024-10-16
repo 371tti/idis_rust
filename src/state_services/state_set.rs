@@ -7,9 +7,9 @@ use serde::ser::{Serializer, SerializeStruct};
 
 pub struct State {
     pub user_ruid: String, // user id
-    pub user_perm: Vec<String>, // user permission list
-    pub session_id: Option<String>,
-    pub api_key: Option<String>,
+    pub user_perm: Vec<u128>, // user permission list
+    pub session_id: Option<Vec<u8>>,
+    pub api_key: Option<Vec<u8>>,
     pub status: u32, // status like http status code
     pub stage: u32, // 0: instance, 1: session, 2: parsing, 3: auth, 4: processing, 5: build
     pub reqest: Request,
@@ -37,7 +37,8 @@ impl Serialize for State {
     {
         let mut state = serializer.serialize_struct("State", 9)?;
         state.serialize_field("user_ruid", &self.user_ruid)?;
-        state.serialize_field("user_perm", &self.user_perm)?;
+        let user_perm_hex: Vec<String> = self.user_perm.iter().map(|perm| format!("{:x}", perm)).collect();
+        state.serialize_field("user_perm", &user_perm_hex)?;
         state.serialize_field("session_id", &self.session_id)?;
         state.serialize_field("api_key", &self.api_key)?;
         state.serialize_field("status", &self.status)?;

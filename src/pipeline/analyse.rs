@@ -5,7 +5,7 @@ use mime_guess::Mime;
 use serde_json::{json, Value};
 use woothee::parser::Parser;
 use super::processor::Processor;
-use crate::{state_services::user_agent_set::UserAgent, utils::err_set::ErrState};  // ErrState をインポート
+use crate::{state_services::user_agent_set::UserAgent, utils::err_set::ErrState, utils::base64};  // ErrState をインポート
 
 pub trait Analyze {
     fn analyze_http(&mut self) -> Result<&mut Self, ErrState>;
@@ -27,14 +27,33 @@ impl Analyze for Processor {
                 return Err(ErrState::new(101, 400));  // HTTP 400 Bad Request
             }
         }
+        // Cookieからsession idを取得
+        if let Some(session) = self.req.cookie("session_id") {
+            let session_str = session.value();
+            if let Ok(session_vec) = base64::decode_base64(session_str) {
+                if session_vec.len() == self.app_set.config.session_len_byte {
+                    self.state.session_id = Some(session_vec);
+                } else {
+                }
+            } else {
+            }
+        }
 
         // Authorization ヘッダーの解析
         if let Some(auth_header) = self.req.headers().get("Authorization") {
             if let Ok(key) = auth_header.to_str() {
-                self.state.api_key = Some(key.to_string());
+                    if let Ok(key_vec) = base64::decode_base64(key) {
+                        if key_vec.len() == self.app_set.config.api_key_len_byte {
+                            self.state.api_key = Some(key_vec);
+                        } else {
+                            return Err(ErrState::new(102, 400)); 
+                        }
+                    } else {
+                        return Err(ErrState::new(102, 400)); 
+                    }
             } else {
                 self.state.api_key = None;
-                return Err(ErrState::new(102, 400));  // HTTP 400 Bad Request
+                return Err(ErrState::new(102, 400));
             }
         } else {
             self.state.api_key = None;

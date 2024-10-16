@@ -25,14 +25,21 @@ impl Processor {
     }
 
     pub fn run(mut self) -> HttpResponse {
-
         if let Err(e) = self.analyze_http() {
             // Handle the error, e.g., log it
             eprintln!("Error analyzing HTTP: {:?}", e);
             return HttpResponse::InternalServerError().finish();
         }
 
-        HttpResponse::Ok().finish() // 仮のレスポンス
+        match serde_json::to_string(&self.state) {
+            Ok(json) => HttpResponse::Ok()
+                .content_type("application/json")
+                .body(json),
+            Err(e) => {
+                eprintln!("Error serializing state to JSON: {:?}", e);
+                HttpResponse::InternalServerError().finish()
+            }
+        }
     }
 }
 

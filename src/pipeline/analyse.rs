@@ -5,7 +5,7 @@ use mime_guess::Mime;
 use serde_json::{json, Value};
 use woothee::parser::Parser;
 use super::processor::Processor;
-use crate::{state_services::user_agent_set::UserAgent, utils::err_set::ErrState, utils::base64};  // ErrState をインポート
+use crate::{state_services::user_agent_set::UserAgent, state_services::err_set::ErrState, utils::base64};  // ErrState をインポート
 
 pub trait Analyze {
     fn analyze_http(&mut self) -> Result<&mut Self, ErrState>;
@@ -24,7 +24,7 @@ impl Analyze for Processor {
             {
                 self.lock_this_server = content_length > self.app_set.config.server_cluster_lock_content_len;
             } else {
-                return Err(ErrState::new(101, 400));  // HTTP 400 Bad Request
+                return Err(ErrState::new(101, "Content-Lengthがない", None));  // HTTP 400 Bad Request
             }
         }
         // Cookieからsession idを取得
@@ -42,18 +42,21 @@ impl Analyze for Processor {
         // Authorization ヘッダーの解析
         if let Some(auth_header) = self.req.headers().get("Authorization") {
             if let Ok(key) = auth_header.to_str() {
-                    if let Ok(key_vec) = base64::decode_base64(key) {
-                        if key_vec.len() == self.app_set.config.api_key_len_byte {
-                            self.state.api_key = Some(key_vec);
-                        } else {
-                            return Err(ErrState::new(102, 400)); 
-                        }
-                    } else {
-                        return Err(ErrState::new(102, 400)); 
-                    }
+            match base64::decode_base64(key) {
+                Ok(key_vec) => {
+                if key_vec.len() == self.app_set.config.api_key_len_byte {
+                    self.state.api_key = Some(key_vec);
+                } else {
+                    return Err(ErrState::new(102, "APIキーの長さが不正", None));  // HTTP 400 Bad Request
+                }
+                }
+                Err(e) => {
+                return Err(ErrState::new(102, "APIキーのデコードに失敗", Some(e)));  // HTTP 400 Bad Request
+                }
+            }
             } else {
-                self.state.api_key = None;
-                return Err(ErrState::new(102, 400));
+            self.state.api_key = None;
+            return Err(ErrState::new(102, "APIキーが不正", None));  // HTTP 400 Bad Request
             }
         } else {
             self.state.api_key = None;

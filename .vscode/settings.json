@@ -1,5 +1,11 @@
 {
     "cSpell.words": [
         "actix"
-    ]
+    ],
+        "rust-analyzer.cargo.autoreload": true,
+        "rust-analyzer.checkOnSave.enable": true,
+        "rust-analyzer.inlayHints.enable": true,
+        "rust-analyzer.lens.enable": true,
+        "editor.formatOnSave": true
+    
 }

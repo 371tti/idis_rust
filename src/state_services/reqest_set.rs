@@ -1,3 +1,4 @@
+use chrono::Utc;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use serde_json::{json, Value};
 
@@ -11,11 +12,12 @@ pub struct Request {
     pub referer: Option<String>,
     pub content_type: Option<String>,
     pub accept: Value,
-    pub timestamp: u64,
+    pub timestamp: i64,
 }
 
 impl Request {
     pub fn new() -> Self {
+        let utc_timestamp = Utc::now().timestamp_millis();
         Self {
             path: "".to_string(),
             method: "".to_string(),
@@ -24,7 +26,7 @@ impl Request {
             referer: None,
             content_type: None,
             accept: json!([]),
-            timestamp: 0,
+            timestamp: utc_timestamp,
         }
     }
 }

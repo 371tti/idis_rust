@@ -51,7 +51,7 @@ impl Serialize for UserAgent {
         state.serialize_field("vendor", &self.vendor)?;
         state.serialize_field("browser_type", &self.browser_type)?;
         state.serialize_field("version", &Some("1.0.0".to_string()))?;  // 追加フィールド
-        state.serialize_field("type", &Some(10))?; // 追加フィールド
+        state.serialize_field("type", &Some(9))?; // 追加フィールド
         state.end()
     }
 }

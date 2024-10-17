@@ -13,7 +13,7 @@ pub trait Analyze {
 
 impl Analyze for Processor {
     fn analyze_http(&mut self) -> Result<&mut Self, ErrState> {
-        self.state.stage = 1;
+        self.state.stage = 0;
         let method = self.req.method().as_str();
         
         let mut lock_this_server = false;

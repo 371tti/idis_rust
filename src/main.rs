@@ -47,7 +47,7 @@ async fn catch_all(app_set: web::Data<AppSet>, req: HttpRequest, body_stream: we
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // ロガーの初期化
-    env_logger::init_from_env(Env::default().default_filter_or("error"));
+    env_logger::init_from_env(Env::default().default_filter_or("debug"));
 
     let app_config = AppConfig::new();
 

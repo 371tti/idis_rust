@@ -2,16 +2,16 @@ use serde::ser::{Serialize, Serializer, SerializeStruct};
 use chrono::Utc;
 
 #[derive(Debug)]
-pub struct ErrState<'a> {
+pub struct ErrState {
     pub process_num: u64,
-    pub message: &'a str,
+    pub message: String,
     pub timestamp: i64,
-    pub parent: Option<Box<ErrState<'a>>>, // 親エラーを保持するフィールドを追加
+    pub parent: Option<Box<ErrState>>, // 親エラーを保持するフィールドを追加
     pub is_root: bool,
 }
 
-impl<'a> ErrState<'a> {
-    pub fn new(process_num: u64, message: &'a str, parent: Option<ErrState<'a>>) -> Self {
+impl ErrState {
+    pub fn new(process_num: u64, message: String, parent: Option<ErrState>) -> Self {
         let utc_timestamp = Utc::now().timestamp_millis();
         let parent_new = if let Some(mut parent_val) = parent {
             parent_val.is_root = false;
@@ -31,7 +31,7 @@ impl<'a> ErrState<'a> {
 }
 
 // カスタムシリアライズの実装
-impl<'a> Serialize for ErrState<'a> {
+impl Serialize for ErrState {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

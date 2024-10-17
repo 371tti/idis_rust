@@ -16,55 +16,59 @@ impl Analyze for Processor {
         self.state.stage = 1;
         let method = self.req.method().as_str();
         
+        let mut lock_this_server = false;
+        let mut session_id = None;
+        let mut api_key = None;
+        let mut referer = None;
+        let mut content_type = None;
+        let mut accept_type = Vec::new();
+        let mut user_agent = UserAgent::new(None, None, None, None, None, None, None);
+
         // POST, PUT, PATCHリクエストの場合のサーバーロック処理
         if matches!(method, "POST" | "PUT" | "PATCH") {
             if let Some(content_length) = self.req.headers().get("Content-Length")
                 .and_then(|val| val.to_str().ok())
                 .and_then(|val| val.parse::<u64>().ok())
             {
-                self.lock_this_server = content_length > self.app_set.config.server_cluster_lock_content_len;
+                lock_this_server = content_length > self.app_set.config.server_cluster_lock_content_len;
             } else {
-                return Err(ErrState::new(101, "Content-Lengthがない", None));  // HTTP 400 Bad Request
+                return Err(ErrState::new(101, "Content-Lengthがない".to_string(), None));  // HTTP 400 Bad Request
             }
         }
+
         // Cookieからsession idを取得
         if let Some(session) = self.req.cookie("session_id") {
             let session_str = session.value();
             if let Ok(session_vec) = base64::decode_base64(session_str) {
                 if session_vec.len() == self.app_set.config.session_len_byte {
-                    self.state.session_id = Some(session_vec);
-                } else {
+                    session_id = Some(session_vec);
                 }
-            } else {
             }
         }
 
         // Authorization ヘッダーの解析
         if let Some(auth_header) = self.req.headers().get("Authorization") {
             if let Ok(key) = auth_header.to_str() {
-            match base64::decode_base64(key) {
-                Ok(key_vec) => {
-                if key_vec.len() == self.app_set.config.api_key_len_byte {
-                    self.state.api_key = Some(key_vec);
-                } else {
-                    return Err(ErrState::new(102, "APIキーの長さが不正", None));  // HTTP 400 Bad Request
+                match base64::decode_base64(key) {
+                    Ok(key_vec) => {
+                        if key_vec.len() == self.app_set.config.api_key_len_byte {
+                            api_key = Some(key_vec);
+                        } else {
+                            return Err(ErrState::new(102, "APIキーの長さが不正".to_string(), None));  // HTTP 400 Bad Request
+                        }
+                    }
+                    Err(e) => {
+                        return Err(ErrState::new(102, "APIキーのデコードに失敗".to_string(), Some(e)));  // HTTP 400 Bad Request
+                    }
                 }
-                }
-                Err(e) => {
-                return Err(ErrState::new(102, "APIキーのデコードに失敗", Some(e)));  // HTTP 400 Bad Request
-                }
-            }
             } else {
-            self.state.api_key = None;
-            return Err(ErrState::new(102, "APIキーが不正", None));  // HTTP 400 Bad Request
+                return Err(ErrState::new(102, "APIキーが不正".to_string(), None));  // HTTP 400 Bad Request
             }
-        } else {
-            self.state.api_key = None;
         }
 
         // その他のヘッダー情報の解析
         let path = self.req.path().to_string();
-        let referer = self.req.headers().get("Referer")
+        referer = self.req.headers().get("Referer")
             .and_then(|val| val.to_str().ok())
             .map(|s| s.to_string());
 
@@ -74,26 +78,23 @@ impl Analyze for Processor {
             .into_inner());
 
         // User-Agent解析
-        let user_agent;
         let user_agent_str = self.req.headers().get("User-Agent")
             .and_then(|val| val.to_str().ok())
             .unwrap_or("");
         if let Some(ua) = Parser::new().parse(user_agent_str) {
             user_agent = UserAgent::new(
-            Some(ua.name.to_string()),
-            Some(ua.version.to_string()),
-            Some(ua.os.to_string()),
-            Some(ua.os_version.to_string()),
-            Some(ua.category.to_string()),
-            Some(ua.vendor.to_string()),
-            Some(ua.browser_type.to_string())
+                Some(ua.name.to_string()),
+                Some(ua.version.to_string()),
+                Some(ua.os.to_string()),
+                Some(ua.os_version.to_string()),
+                Some(ua.category.to_string()),
+                Some(ua.vendor.to_string()),
+                Some(ua.browser_type.to_string())
             );
-        } else {
-            user_agent = UserAgent::new(None, None, None, None, None, None, None);
         }
 
         // Content-Type解析
-        let content_type = self.req.headers().get("Content-Type")
+        content_type = self.req.headers().get("Content-Type")
             .and_then(|val| val.to_str().ok())
             .map(|s| s.to_string());
 
@@ -131,7 +132,7 @@ impl Analyze for Processor {
             }
         }
 
-        let accept_type: Vec<String> = matching_types.into_iter()
+        accept_type = matching_types.into_iter()
             .map(|(mime, _)| mime.to_string())
             .collect();
 
@@ -143,9 +144,10 @@ impl Analyze for Processor {
         self.state.reqest.content_type = content_type;
         self.state.reqest.referer = referer;
         self.state.reqest.accept = json!(accept_type);
+        self.state.session_id = session_id;
+        self.state.api_key = api_key;
+        self.lock_this_server = lock_this_server;
 
         Ok(self)
     }
-
 }
-

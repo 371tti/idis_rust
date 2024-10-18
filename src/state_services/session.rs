@@ -7,10 +7,12 @@ use base64::{engine::general_purpose, DecodeError, Engine as _};
 
 use crate::sys::init::AppConfig;
 
+use super::err_set::ErrState;
+
 #[derive(Clone)]
 pub struct SessionData {
-    pub last_access_time: u64,
-    pub generated_time: u64,
+    pub last_access_time: i64,
+    pub generated_time: i64,
     pub users: Vec<u128>,
 }
 
@@ -23,6 +25,7 @@ pub struct Session {
 }
 
 impl Session {
+    // コンストラクタ
     pub fn new(app_config: &AppConfig) -> Self {
         Session {
             sessions: Mutex::new(HashMap::with_capacity(app_config.session_default_capacity)),
@@ -33,17 +36,30 @@ impl Session {
         }
     }
 
-    pub fn update_last_access_time(&self, session_vec: Vec<u8>) -> Result<(), String> {
-        let latest_access_time = Utc::now().timestamp_millis() as u64;
-        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
-        if let Some(session_data) = sessions.get_mut(&session_vec) {
-            session_data.last_access_time = latest_access_time;
+    // 最終アクセス時間を更新
+    pub fn update_last_access_time(&self, session_vec: Vec<u8>) -> Result<(), ErrState> {
+        let latest_access_time = Utc::now().timestamp_millis();
+        let mut sessions = match self.sessions.lock() {
+            Ok(sessions) => sessions,
+            Err(e) => return Err(ErrState::new(400, "セッションのロックに失敗".to_string(), None)),
+        };
+        match sessions.get_mut(&session_vec) {
+            Some(session_data) => {
+                session_data.last_access_time = latest_access_time;
+            }
+            None => {
+                return Err(ErrState::new(401, "セッションが見つかりません".to_string(), None));
+            }
         }
         Ok(())
     }
 
-    pub fn user_set(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, String> {
-        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+    // ユーザーを設定
+    pub fn user_set(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, ErrState> {
+        let mut sessions = match self.sessions.lock() {
+            Ok(sessions) => sessions,
+            Err(_) => return Err(ErrState::new(402, "セッションのロックに失敗".to_string(), None)),
+        };
         if let Some(session_data) = sessions.get_mut(&session_vec) {
             // ruid を先頭に移動
             if let Some(pos) = session_data.users.iter().position(|&x| x == ruid) {
@@ -52,58 +68,81 @@ impl Session {
 
                 Ok(Some(session_data.clone()))
             } else {
-                Ok(None)
+                return Err(ErrState::new(403, "ユーザーが見つかりません".to_string(), None));
             }
         } else {
-            Ok(None)
+            return Err(ErrState::new(404, "セッションが見つかりません".to_string(), None));
         }
     }
 
-    pub fn user(&self, session_vec: Vec<u8>) -> Result<Option<u128>, String> {
-        let sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+    // ユーザーを取得
+    pub fn user(&self, session_vec: Vec<u8>) -> Result<Option<u128>, ErrState> {
+        let sessions = match self.sessions.lock() {
+            Ok(sessions) => sessions,
+            Err(_) => return Err(ErrState::new(405, "セッションのロックに失敗".to_string(), None)),
+        };
 
         if let Some(session_data) = sessions.get(&session_vec) {
             Ok(session_data.users.first().copied())
         } else {
-            Ok(None)
+            Err(ErrState::new(406, "セッションが見つかりません".to_string(), None))
         }
     }
 
-    pub fn get(&self, session_vec: Vec<u8>) -> Result<Option<SessionData>, String> {
-        let sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+    // セッションデータを取得
+    pub fn get(&self, session_vec: Vec<u8>) -> Result<Option<SessionData>, ErrState> {
+        let sessions = match self.sessions.lock() {
+            Ok(sessions) => sessions,
+            Err(_) => return Err(ErrState::new(407, "セッションのロックに失敗".to_string(), None)),
+        };
         if let Some(session_data) = sessions.get(&session_vec) {
             Ok(Some(session_data.clone()))
         } else {
-            Ok(None)
+            Err(ErrState::new(408, "セッションが見つかりません".to_string(), None))
         }
     }
 
-    pub fn add(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, String> {
-        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+    // ユーザーを追加
+    pub fn add(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, ErrState> {
+        let mut sessions = match self.sessions.lock() {
+            Ok(sessions) => sessions,
+            Err(_) => return Err(ErrState::new(409, "セッションのロックに失敗".to_string(), None)),
+        };
         if let Some(session_data) = sessions.get_mut(&session_vec) {
             session_data.users.push(ruid);
             Ok(Some(session_data.clone()))
         } else {
-            Ok(None)
+            Err(ErrState::new(410, "セッションが見つかりません".to_string(), None))
         }
     }
 
-    pub fn rem(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, String> {
-        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+    // ユーザーを削除
+    pub fn rem(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, ErrState> {
+        let mut sessions = match self.sessions.lock() {
+            Ok(sessions) => sessions,
+            Err(_) => return Err(ErrState::new(411, "セッションのロックに失敗".to_string(), None)),
+        };
         if let Some(session_data) = sessions.get_mut(&session_vec) {
             session_data.users.retain(|&x| x != ruid);
             Ok(Some(session_data.clone()))
         } else {
-            Ok(None)
+            Err(ErrState::new(412, "セッションが見つかりません".to_string(), None))
         }
     }
 
-    pub fn set(&self) -> Result<Vec<u8>, String> {
+    // 新しいセッションを設定
+    pub fn set(&self) -> Result<Vec<u8>, ErrState> {
         loop {
-            let session_vec = self.generate()?;
-            let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+            let session_vec = match self.generate() {
+                Ok(vec) => vec,
+                Err(e) => return Err(ErrState::new(413, "セッションの生成に失敗".to_string(), Some(e))),
+            };
+            let mut sessions = match self.sessions.lock() {
+                Ok(sessions) => sessions,
+                Err(_) => return Err(ErrState::new(414, "セッションのロックに失敗".to_string(), None)),
+            };
             if !sessions.contains_key(&session_vec) {
-                let time = Utc::now().timestamp_millis() as u64;
+                let time = Utc::now().timestamp_millis();
                 sessions.insert(
                     session_vec.clone(),
                     SessionData {
@@ -119,25 +158,28 @@ impl Session {
         }
     }
 
-    pub fn unset(&self, session_vec: Vec<u8>) -> Result<Option<SessionData>, String> {
-        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
-        Ok(sessions.remove(&session_vec))
-    }
-
-    pub fn generate(&self) -> Result<Vec<u8>, String> {
+    // セッションIDを生成
+    pub fn generate(&self) -> Result<Vec<u8>, ErrState> {
         let mut buffer = vec![0u8; self.len];
-        let mut rng = self.rng.lock().map_err(|e| e.to_string())?;
+        let mut rng = match self.rng.lock() {
+            Ok(rng) => rng,
+            Err(_) => return Err(ErrState::new(415, "乱数生成器のロックに失敗".to_string(), None)),
+        };
         rng.fill_bytes(&mut buffer);
 
         Ok(buffer)
     }
 
-    pub fn vec_to_base64(&self, session_vec: Vec<u8>) -> String {
-        general_purpose::STANDARD.encode(session_vec)
+    // セッションを削除
+    pub fn unset(&self, session_vec: Vec<u8>) -> Result<Option<SessionData>, ErrState> {
+        let mut sessions = match self.sessions.lock() {
+            Ok(sessions) => sessions,
+            Err(_) => return Err(ErrState::new(416, "セッションのロックに失敗".to_string(), None)),
+        };
+        if let Some(session_data) = sessions.remove(&session_vec) {
+            Ok(Some(session_data))
+        } else {
+            Err(ErrState::new(417, "セッションが見つかりません".to_string(), None))
+        }
     }
-
-    pub fn base64_to_vec(&self, session_base64: &str) -> Result<Vec<u8>, DecodeError> {
-        general_purpose::STANDARD.decode(session_base64)
-    }
-
 }

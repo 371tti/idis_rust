@@ -1,3 +1,5 @@
+use crate::state_services::err_set::ErrState;
+
 use super::processor::Processor;
 
 pub trait SessionCheck {
@@ -9,7 +11,9 @@ impl SessionCheck for Processor {
         self.state.stage = 1;
 
         if let Some(session_vec) = self.state.session_id {
+             // セッションIDがある場合
             if let Some(user_ruid) = self.app_set.session.user(session_vec.clone())? {
+                // セッションIDからユーザーIDを取得
                 self.app_set.session.update_last_access_time(session_vec.clone())?;
                 self.app_set.user.update_last_access_time(&user_ruid)?;
                 let user_data = self.app_set.user.get(&user_ruid)?;
@@ -17,6 +21,7 @@ impl SessionCheck for Processor {
                 self.state.user_perm = user_data.perm;
                 return Ok(self);
             } else {
+                // セッションIDが無効な場合
                 let new_session_vec = self.app_set.session.set()?;
             }
         }
@@ -39,6 +44,7 @@ impl SessionCheck for Processor {
             // let user_data = self.app.user.get(&guest_user_ruid.to_u128())?;
             // self.state.user_perm = user_data.perm.iter().map(|&num| format!("{:x}", num)).collect();
             // return Ok(());
+
 
     }
 }

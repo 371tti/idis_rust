@@ -1,8 +1,15 @@
+use actix::{Actor, StreamHandler};
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 
 use crate::{state_services::{err_set::ErrState, state_set::State}, sys::app_set::AppSet};
 use super::{analyse::Analyze, perm_load::PermLoad};
+
+struct IdisWebSocket;
+
+impl Actor for IdisWebSocket {
+    type Context = ws::WebsocketContext<Self>;
+}
 
 pub struct Processor {
     pub app_set: web::Data<AppSet>,
@@ -83,7 +90,19 @@ impl Processor {
     }
 
     async fn handle_ws_request(self) -> Result<HttpResponse, ErrState> {
-       Ok( ws::start(MyWebSocket {}, &self.req, self.body_stream).unwrap())
+       Ok( ws::start(IdisWebSocket {}, &self.req, self.body_stream).unwrap())
     }
 }
 
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for IdisWebSocket {
+    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+        match msg {
+            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
+            Ok(ws::Message::Text(text)) => {
+                ctx.text(text);
+            }
+            Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
+            _ => (),
+        }
+    }
+}

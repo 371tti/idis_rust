@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 
 use super::reqest_set::Request;
 use serde::ser::{Serializer, SerializeStruct};
+use crate::utils::base64;
 
 pub struct State {
     pub user_ruid: String, // user id
@@ -39,7 +40,11 @@ impl Serialize for State {
         state.serialize_field("user_ruid", &self.user_ruid)?;
         let user_perm_hex: Vec<String> = self.user_perm.iter().map(|perm| format!("{:x}", perm)).collect();
         state.serialize_field("user_perm", &user_perm_hex)?;
-        state.serialize_field("session_id", &self.session_id)?;
+        if let Some(session_id_vec) = &self.session_id {
+            state.serialize_field("session_id", &base64::encode_base64(&session_id_vec))?;
+        } else {
+            state.serialize_field("session_id", &Option::<String>::None)?;
+        }
         state.serialize_field("api_key", &self.api_key)?;
         state.serialize_field("status", &self.status)?;
         state.serialize_field("stage", &self.stage)?;

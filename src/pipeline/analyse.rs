@@ -1,8 +1,8 @@
 // src/state_services/analyze.rs
 use std::collections::HashMap;
-use actix_web::{web, HttpRequest};
+use actix_web::web;
 use mime_guess::Mime;
-use serde_json::{json, Value};
+use serde_json::json;
 use woothee::parser::Parser;
 use super::processor::Processor;
 use crate::{state_services::user_agent_set::UserAgent, state_services::err_set::ErrState, utils::base64};  // ErrState をインポート

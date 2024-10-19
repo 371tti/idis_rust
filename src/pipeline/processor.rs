@@ -1,8 +1,8 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web_actors::ws;
 
-use crate::{state_services::state_set::State, sys::app_set::{self, AppSet}};
-
-use super::analyse::{self, Analyze};
+use crate::{state_services::{err_set::ErrState, state_set::State}, sys::app_set::AppSet};
+use super::{analyse::Analyze, perm_load::PermLoad};
 
 pub struct Processor {
     pub app_set: web::Data<AppSet>,
@@ -24,22 +24,66 @@ impl Processor {
         }
     }
 
-    pub fn run(mut self) -> HttpResponse {
+
+    pub async fn run(mut self) -> HttpResponse {
+
+        if self.req.headers().contains_key("upgrade") {
+            match self.handle_ws_request().await {
+                Ok(resp) => resp,
+                Err(_) => HttpResponse::InternalServerError().finish(),
+            }
+        } else {
+            match self.handle_http_request().await {
+                Ok(resp) => resp,
+                Err(_) => HttpResponse::InternalServerError().finish(),
+            }
+        }
+
+
+
+
+
+
+    }
+
+    async fn handle_http_request(&mut self) -> Result<HttpResponse , ErrState> {
         if let Err(e) = self.analyze_http() {
-            // Handle the error, e.g., log it
-            eprintln!("Error analyzing HTTP: {:?}", e);
-            return HttpResponse::InternalServerError().finish();
+            return match serde_json::to_string(&e) {
+                Ok(json) => Ok(HttpResponse::InternalServerError()
+                    .content_type("application/json")
+                    .body(json)),
+                Err(e) => {
+                    eprintln!("Error serializing ErrState to JSON: {:?}", e);
+                    Ok(HttpResponse::InternalServerError().finish())
+                }
+            };
+        }
+
+        if let Err(e) = self.session_check_http() {
+            return match serde_json::to_string(&e) {
+                Ok(json) => Ok(HttpResponse::InternalServerError()
+                    .content_type("application/json")
+                    .body(json)),
+                Err(e) => {
+                    eprintln!("Error serializing ErrState to JSON: {:?}", e);
+                    Ok(HttpResponse::InternalServerError().finish())
+                }
+            };
         }
 
         match serde_json::to_string(&self.state) {
-            Ok(json) => HttpResponse::Ok()
+            Ok(json) => Ok(HttpResponse::Ok()
                 .content_type("application/json")
-                .body(json),
+                .body(json)),
             Err(e) => {
                 eprintln!("Error serializing state to JSON: {:?}", e);
-                HttpResponse::InternalServerError().finish()
+                Ok(HttpResponse::InternalServerError().finish())
             }
         }
+    }
+
+    async fn handle_ws_request(self) -> Result<HttpResponse, ErrState> {
+       Ok( ws::start(MyWebSocket {}, &self.req, self.body_stream).unwrap())
     }
 }
 

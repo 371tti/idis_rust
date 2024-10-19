@@ -5,10 +5,14 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4"
+actix = "0.13"
+actix-rt = "2"
+actix-web-actors = "4.0"
+futures-util = "0.3.31"
 serde = { version = "1.0", features = ["derive"] }
 futures = "0.3.30"
-serde_json = "1.0"
-tokio = { version = "1.37", features = ["full"] }
+serde_json = "1.0.125"
+tokio = { version = "1.39.3", features = ["full"] }
 env_logger = "0.11.5"
 toml = "0.8.5"
 rand = "0.8.5"
@@ -16,7 +20,7 @@ tokio-util = "0.7"
 bytes = "1.7.1"
 mime_guess = "2.0.5"
 chrono = "0.4"
-mongodb = "2.0"
+mongodb = "2.8.2"
 rand_chacha = "0.3"
-base64 = "0.21"
+base64 = "0.21.7"
 woothee = "0.13.0"

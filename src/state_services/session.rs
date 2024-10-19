@@ -13,6 +13,7 @@ use super::err_set::ErrState;
 pub struct SessionData {
     pub last_access_time: i64,
     pub generated_time: i64,
+    pub access_count: u64,
     pub users: Vec<u128>,
 }
 
@@ -46,6 +47,7 @@ impl Session {
         match sessions.get_mut(&session_vec) {
             Some(session_data) => {
                 session_data.last_access_time = latest_access_time;
+                session_data.access_count += 1;
             }
             None => {
                 return Err(ErrState::new(401, "セッションが見つかりません".to_string(), None));
@@ -141,6 +143,7 @@ impl Session {
                 Ok(sessions) => sessions,
                 Err(_) => return Err(ErrState::new(414, "セッションのロックに失敗".to_string(), None)),
             };
+            
             if !sessions.contains_key(&session_vec) {
                 let time = Utc::now().timestamp_millis();
                 sessions.insert(
@@ -148,6 +151,7 @@ impl Session {
                     SessionData {
                         last_access_time: time,
                         generated_time: time,
+                        access_count: 0,
                         users: Vec::new(),
                     },
                 );

@@ -53,7 +53,7 @@ impl Processor {
 
     }
 
-    async fn handle_http_request(&mut self) -> Result<HttpResponse , ErrState> {
+    async fn handle_http_request(mut self) -> Result<HttpResponse , ErrState> {
         if let Err(e) = self.analyze_http() {
             return match serde_json::to_string(&e) {
                 Ok(json) => Ok(HttpResponse::InternalServerError()
@@ -89,8 +89,16 @@ impl Processor {
         }
     }
 
-    async fn handle_ws_request(self) -> Result<HttpResponse, ErrState> {
-       Ok( ws::start(IdisWebSocket {}, &self.req, self.body_stream).unwrap())
+    async fn handle_ws_request(mut self) -> Result<HttpResponse, ErrState> {
+        match self.analyze_http() {
+            Ok(_) => (),
+            Err(e) => return Err(ErrState::new(0, "アップグレードリクエストの解析に失敗".to_string(), Some(e))),
+        }
+        match self.session_check_http() {
+            Ok(_) => (), 
+            Err(e) => return Err(ErrState::new(0, "アップグレードリクエストの権限読み込みに失敗".to_string(), Some(e))),
+        }
+        Ok( ws::start(IdisWebSocket {}, &self.req, self.body_stream).unwrap())
     }
 }
 

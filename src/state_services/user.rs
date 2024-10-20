@@ -15,6 +15,7 @@ pub struct UserData {
     pub user_id: String,
     pub account_level: i32,
     pub perm: Vec<u128>,
+    pub active_session: Vec<Vec<u8>>,
     pub latest_access_time: i64, // UTCのミリ秒を格納
 }
 
@@ -77,6 +78,7 @@ impl User {
                 user_id: user_id.to_string(),
                 account_level: *account_level,
                 perm: perm.clone(),
+                active_session: Vec::new(), // アクティブセッションは空で初期化
                 latest_access_time, // 最新のアクセス時間を設定
             })
         );
@@ -89,6 +91,8 @@ impl User {
         // 正常終了
         Ok(())
     }
+
+    
 
     pub fn remove(&self, ruid: &u128) -> Result<(), ErrState> {
         // ロック取得時のエラーハンドリング

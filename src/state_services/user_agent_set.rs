@@ -3,6 +3,7 @@
 // Add the necessary imports
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 
+#[derive(Clone)]
 pub struct UserAgent {
     pub browser_name: Option<String>,
     pub browser_version: Option<String>,

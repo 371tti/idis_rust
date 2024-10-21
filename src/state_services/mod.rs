@@ -5,3 +5,4 @@ pub mod instruction_set;
 pub mod reqest_set;
 pub mod user_agent_set;
 pub mod err_set;
+pub mod ws_set;

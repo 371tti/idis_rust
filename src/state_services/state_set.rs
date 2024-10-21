@@ -6,6 +6,7 @@ use super::reqest_set::Request;
 use serde::ser::{Serializer, SerializeStruct};
 use crate::utils::base64;
 
+#[derive(Clone)]
 pub struct State {
     pub user_ruid: String, // user id
     pub user_perm: Vec<u128>, // user permission list

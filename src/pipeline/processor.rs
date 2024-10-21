@@ -45,12 +45,6 @@ impl Processor {
                 Err(_) => HttpResponse::InternalServerError().finish(),
             }
         }
-
-
-
-
-
-
     }
 
     async fn handle_http_request(mut self) -> Result<HttpResponse , ErrState> {

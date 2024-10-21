@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 
 use super::user_agent_set::UserAgent;
 
+#[derive(Clone)]
 pub struct Request {
     pub path: String,
     pub method: String,

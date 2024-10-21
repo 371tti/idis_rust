@@ -181,14 +181,14 @@ pub struct WsConnectionSet {
 
 impl WsConnectionSet {
     // 新しいWsConnectionSetを生成
-    pub fn new(app_config: &AppConfig) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn new(app_config: &AppConfig) -> Self {
+        Self {
             ws_connections: Mutex::new(HashMap::new()),
             ws_settings: WsSettings {
                 heartbeat_interval: Duration::from_secs(app_config.ws_heartbeat_interval),
                 client_timeout: Duration::from_secs(app_config.ws_client_timeout),
             },
-        })
+        }
     }
 
     // 特定のコネクションにテキストメッセージを送信

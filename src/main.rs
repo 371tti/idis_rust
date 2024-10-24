@@ -25,6 +25,7 @@ mod build_handlers;
 mod db_handlers;
 mod state_services;
 mod pipeline;
+mod actors;
 
 use crate::build_handlers::json_api::JsonApi;
 use crate::build_handlers::file_api::FileApi;

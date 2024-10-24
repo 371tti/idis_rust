@@ -1,6 +1,6 @@
-use crate::{build_handlers::{file_api::FileApi, json_api::JsonApi}, db_handlers::mongo_client::MongoClient, state_services::{session::Session, user::User, ws_set::WsConnectionSet}, utils::ruid::RuidGenerator};
+use crate::{build_handlers::{file_api::FileApi, json_api::JsonApi}, db_handlers::mongo_client::MongoClient, state_services::{session::Session, user::User}, utils::ruid::RuidGenerator};
 
-use super::init::AppConfig;
+use super::{init::AppConfig, ws::WsConnectionSet};
 
 pub struct AppSet {
     pub session: Session,

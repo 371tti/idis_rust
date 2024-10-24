@@ -5,12 +5,6 @@ use actix_web_actors::ws;
 use crate::{state_services::{err_set::ErrState, state_set::State}, sys::app_set::AppSet};
 use super::{analyse::Analyze, perm_load::PermLoad};
 
-struct IdisWebSocket;
-
-impl Actor for IdisWebSocket {
-    type Context = ws::WebsocketContext<Self>;
-}
-
 pub struct Processor {
     pub app_set: web::Data<AppSet>,
     pub state: State,
@@ -84,27 +78,6 @@ impl Processor {
     }
 
     async fn handle_ws_request(mut self) -> Result<HttpResponse, ErrState> {
-        match self.analyze_http() {
-            Ok(_) => (),
-            Err(e) => return Err(ErrState::new(0, "アップグレードリクエストの解析に失敗".to_string(), Some(e))),
-        }
-        match self.session_check_http() {
-            Ok(_) => (), 
-            Err(e) => return Err(ErrState::new(0, "アップグレードリクエストの権限読み込みに失敗".to_string(), Some(e))),
-        }
-        Ok( ws::start(IdisWebSocket {}, &self.req, self.body_stream).unwrap())
-    }
-}
-
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for IdisWebSocket {
-    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        match msg {
-            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(text)) => {
-                ctx.text(text);
-            }
-            Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
-            _ => (),
-        }
+        self.app_set.ws:
     }
 }

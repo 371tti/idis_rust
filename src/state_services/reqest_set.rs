@@ -45,7 +45,7 @@ impl Serialize for Request {
         state.serialize_field("referer", &self.referer)?;
         state.serialize_field("content_type", &self.content_type)?;
         state.serialize_field("accept", &self.accept)?;
-        state.serialize_field("timestamp", &self.timestamp)?;
+        state.serialize_field("timestamp", &format!("{:#x}", self.timestamp))?;
         state.serialize_field("version", &"1.0.0")?; // Add version field
         state.serialize_field("type", &10)?; // Add type field
         state.end()

@@ -28,17 +28,17 @@ impl Processor {
 
     pub async fn run(mut self) -> HttpResponse {
 
-        if self.req.headers().contains_key("upgrade") {
-            match self.handle_ws_request().await {
-                Ok(resp) => resp,
-                Err(_) => HttpResponse::InternalServerError().finish(),
-            }
-        } else {
+        // if self.req.headers().contains_key("upgrade") {
+        //     match self.handle_ws_request().await {
+        //         Ok(resp) => resp,
+        //         Err(_) => HttpResponse::InternalServerError().finish(),
+        //     }
+        // } else {
             match self.handle_http_request().await {
                 Ok(resp) => resp,
                 Err(_) => HttpResponse::InternalServerError().finish(),
             }
-        }
+        // }
     }
 
     async fn handle_http_request(mut self) -> Result<HttpResponse , ErrState> {
@@ -54,7 +54,7 @@ impl Processor {
             };
         }
 
-        if let Err(e) = self.session_check_http() {
+        if let Err(e) = self.session_check_http().await {
             return match serde_json::to_string(&e) {
                 Ok(json) => Ok(HttpResponse::InternalServerError()
                     .content_type("application/json")
@@ -77,7 +77,7 @@ impl Processor {
         }
     }
 
-    async fn handle_ws_request(mut self) -> Result<HttpResponse, ErrState> {
-        self.app_set.ws:
-    }
+    // async fn handle_ws_request(mut self) -> Result<HttpResponse, ErrState> {
+    //     self.app_set.ws:
+    // }
 }

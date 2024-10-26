@@ -127,7 +127,10 @@ impl Session {
     // 新しいセッションを設定
     pub async fn set(&self) -> Result<Vec<u8>, ErrState> {
         loop {
-            let session_vec = self.generate().await?;
+            let session_vec = match self.generate().await {
+                Err(e) => return Err(ErrState::new(413, "セッションIDの生成に失敗".to_string(), Some(e))),
+                Ok(session_vec) => session_vec,
+            };
             let mut sessions = self.sessions.write().map_err(|_| {
                 ErrState::new(414, "セッションのロックに失敗".to_string(), None)
             })?;

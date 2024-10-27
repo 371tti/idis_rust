@@ -1,5 +1,5 @@
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
 
 use actix::fut::future::result;
@@ -99,30 +99,30 @@ impl<'de> Deserialize<'de> for UserData {
                         Field::Perm => {
                             let perm_hex: Vec<String> = map.next_value()?;
                             perm = Some(perm_hex.into_iter()
-                                .map(|hex| u128::from_str_radix(&hex, 16).map_err(|_| de::Error::custom("Invalid perm format")))
+                                .map(|hex| u128::from_str_radix(&hex, 16).map_err(|_| de::Error::custom("無効な perm フォーマットです")))
                                 .collect::<Result<Vec<_>, _>>()?);
                         }
                         Field::ActiveSession => {
                             let session_ids_base64: Vec<String> = map.next_value()?;
                             active_session = Some(session_ids_base64.into_iter()
-                                .map(|s| base64::decode_base64(&s).map_err(|_| de::Error::custom("Invalid active_session format")))
+                                .map(|s| base64::decode_base64(&s).map_err(|_| de::Error::custom("無効な active_session フォーマットです")))
                                 .collect::<Result<Vec<_>, _>>()?);
                         }
                         Field::LatestAccessTime => {
                             let hex_time: String = map.next_value()?;
-                            latest_access_time = Some(i64::from_str_radix(&hex_time, 16).map_err(|_| de::Error::custom("Invalid latest_access_time format"))?);
+                            latest_access_time = Some(i64::from_str_radix(&hex_time, 16).map_err(|_| de::Error::custom("無効な latest_access_time フォーマットです"))?);
                         }
                     }
                 }
 
-                // すべてのフィールドが存在しなければエラーを返す
+                // 必須フィールドが存在しない場合はエラーを返す
                 Ok(UserData {
-                    ruid: ruid.ok_or_else(|| de::Error::custom("Missing ruid"))?,
-                    user_id: user_id.ok_or_else(|| de::Error::custom("Missing user_id"))?,
-                    account_level: account_level.ok_or_else(|| de::Error::custom("Missing account_level"))?,
-                    perm: perm.ok_or_else(|| de::Error::custom("Missing perm"))?,
-                    active_session: active_session.ok_or_else(|| de::Error::custom("Missing active_session"))?,
-                    latest_access_time: latest_access_time.ok_or_else(|| de::Error::custom("Missing latest_access_time"))?,
+                    ruid: ruid.ok_or_else(|| de::Error::custom("ruid がありません"))?,
+                    user_id: user_id.ok_or_else(|| de::Error::custom("user_id がありません"))?,
+                    account_level: account_level.ok_or_else(|| de::Error::custom("account_level がありません"))?,
+                    perm: perm.ok_or_else(|| de::Error::custom("perm がありません"))?,
+                    active_session: active_session.ok_or_else(|| de::Error::custom("active_session がありません"))?,
+                    latest_access_time: latest_access_time.ok_or_else(|| de::Error::custom("latest_access_time がありません"))?,
                 })
             }
         }
@@ -135,30 +135,32 @@ impl<'de> Deserialize<'de> for UserData {
 }
 
 pub struct User {
-    pub users: Mutex<HashMap<u128, Option<UserData>>>,
-    pub id_to_ruid: Mutex<HashMap<String, u128>>,
+    pub users: RwLock<HashMap<u128, Option<UserData>>>,
+    pub id_to_ruid: RwLock<HashMap<String, u128>>,
     pub db: Arc<MongoClient>,
     pub user_collection_name: String,
+    pub user_data_timeout: i64,
 }
 
 impl User {
     pub async fn new(app_config: &AppConfig, db: Arc<MongoClient>) -> Self {
         Self {
-            users: Mutex::new(HashMap::new()),
-            id_to_ruid: Mutex::new(HashMap::new()),
+            users: RwLock::new(HashMap::new()),
+            id_to_ruid: RwLock::new(HashMap::new()),
             db: db,
             user_collection_name: app_config.db_user_collection_name.clone(),
+            user_data_timeout: app_config.user_data_timeout,
         }
     }
 
     pub async fn update_last_access_time(&self, ruid: &u128) -> Result<(), ErrState> {
-        // ロック取得時のエラーハンドリング
-        let mut users = match self.users.lock() {
+        // 書き込みロックを取得
+        let mut users = match self.users.write() {
             Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(900, "ユーザーデータのロック取得に失敗".to_string(), None)),
+            Err(_) => return Err(ErrState::new(900, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)),
         };
 
-        // UTCの現在時刻をミリ秒で取得
+        // 現在のUTC時刻をミリ秒で取得
         let latest_access_time = Utc::now().timestamp_millis();
 
         // 指定された RUID が存在する場合に `latest_access_time` を更新
@@ -169,22 +171,23 @@ impl User {
                 return Err(ErrState::new(901, "ユーザーデータが存在しません".to_string(), None));
             }
         } else {
-            return Err(ErrState::new(902, "指定されたRUIDが存在しません".to_string(), None));
+            return Err(ErrState::new(902, "指定された RUID が存在しません".to_string(), None));
         }
 
         Ok(())
     }
+
     pub async fn set(&self, ruid: &u128, user_id: &str, account_level: &i32, perm: &Vec<u128>, session: &Vec<u8>) -> Result<(), ErrState> {
-        // ロック取得時のエラーハンドリング
-        let mut users = match self.users.lock() {
+        // 書き込みロックを取得
+        let mut users = match self.users.write() {
             Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(903, "ユーザーデータのロック取得に失敗".to_string(), None)),
+            Err(_) => return Err(ErrState::new(903, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)),
         };
-        let mut id_to_ruid = match self.id_to_ruid.lock() {
+        let mut id_to_ruid = match self.id_to_ruid.write() {
             Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(904, "ユーザーIDディクショナリのロック取得に失敗".to_string(), None)),
+            Err(_) => return Err(ErrState::new(904, "ユーザーIDディクショナリの書き込みロック取得に失敗しました".to_string(), None)),
         };
-        // UTCの現在時刻をミリ秒で取得
+        // 現在のUTC時刻をミリ秒で取得
         let latest_access_time = Utc::now().timestamp_millis();
 
         // データの追加
@@ -210,14 +213,14 @@ impl User {
     }
 
     pub async fn remove(&self, ruid: &u128) -> Result<(), ErrState> {
-        // ロック取得時のエラーハンドリング
-        let mut users = match self.users.lock() {
+        // 書き込みロックを取得
+        let mut users = match self.users.write() {
             Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(905, "ユーザーデータのロック取得に失敗".to_string(), None)),
+            Err(_) => return Err(ErrState::new(905, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)),
         };
-        let mut id_to_ruid = match self.id_to_ruid.lock() {
+        let mut id_to_ruid = match self.id_to_ruid.write() {
             Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(906, "ユーザーIDディクショナリのロック取得に失敗".to_string(), None)),
+            Err(_) => return Err(ErrState::new(906, "ユーザーIDディクショナリの書き込みロック取得に失敗しました".to_string(), None)),
         };
 
         // ユーザーの削除
@@ -232,47 +235,69 @@ impl User {
             Ok(())
         } else {
             // 指定された RUID が存在しない場合
-            Err(ErrState::new(907, "指定されたRUIDが存在しません".to_string(), None))
+            Err(ErrState::new(907, "指定された RUID が存在しません".to_string(), None))
         }
     }
 
     pub async fn get(&self, ruid: &u128) -> Result<UserData, ErrState> {
-        // ロックを取得
-        let users = match self.users.lock() {
-            Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(908, "ユーザーデータのロック取得に失敗".to_string(), None)),
-        };
-
-        // ユーザーが存在すればそれを返し、存在しなければエラーを返す
-        if let Some(user_data_option) = users.get(ruid) {
-            if let Some(user_data) = user_data_option {
-                return Ok(user_data.clone()); // クローンを返す
-            } else {
-                return Err(ErrState::new(909, "ユーザーデータが存在しません".to_string(), None));
+        // まず、読み取りロックを取得してユーザーデータを探す
+        {
+            let users = self.users.read().map_err(|_| {
+                ErrState::new(908, "ユーザーデータの読み取りロック取得に失敗しました".to_string(), None)
+            })?;
+            
+            if let Some(user_data_option) = users.get(ruid) {
+                if let Some(user_data) = user_data_option {
+                    return Ok(user_data.clone()); // クローンを返す
+                } else {
+                    return Err(ErrState::new(909, "ユーザーデータが存在しません".to_string(), None));
+                }
             }
-        } else {
-            return Err(ErrState::new(910, "指定されたRUIDが存在しません".to_string(), None));
-        }
+        } // この時点で読み取りロックが解放される
+    
+        // データベースから取得
+        let user_data = match self.db_get(ruid).await {
+            Ok(user_data) => user_data,
+            Err(e) => return Err(e),
+        };
+    
+        // 書き込みロックを取得してキャッシュにデータを挿入
+        {
+            let mut users = self.users.write().map_err(|_| {
+                ErrState::new(908, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)
+            })?;
+    
+            // もう一度チェックして、他のスレッドがすでにデータを挿入していないか確認
+            if let Some(user_data_option) = users.get(ruid) {
+                if let Some(existing_user_data) = user_data_option {
+                    return Ok(existing_user_data.clone()); // 他のスレッドが挿入していた場合、そのデータを返す
+                }
+            }
+    
+            users.insert(*ruid, Some(user_data.clone()));
+        } // 書き込みロックを解放
+    
+        Ok(user_data)
     }
     
     pub async fn db_get(&self, ruid: &u128) -> Result<UserData, ErrState> {
         let query = json!({"ruid": ruid});
-        let data = match  self.db.d_get(&self.user_collection_name, &query, None).await {
+        let data = match self.db.d_get(&self.user_collection_name, &query, None).await {
             Ok(Some(data)) => data,
             Ok(None) => return Err(ErrState::new(912, "ユーザーデータが見つかりません".to_string(), None)),
-            Err(e) => return Err(ErrState::new(911, "ユーザーデータの取得に失敗".to_string(), Some(e))),
+            Err(e) => return Err(ErrState::new(911, "ユーザーデータの取得に失敗しました".to_string(), Some(e))),
         };
 
         let user_data = match serde_json::from_value::<UserData>(data) {
             Ok(user_data) => user_data,
-            Err(_) => return Err(ErrState::new(913, "ユーザーデータのデシリアライズに失敗".to_string(), None)),
+            Err(_) => return Err(ErrState::new(913, "ユーザーデータのデシリアライズに失敗しました".to_string(), None)),
         };
 
         Ok(user_data)
     }
 
     pub async fn create(&self, ruid: u128, user_id: &str, account_level: &i32, perm: &Vec<u128>, session: &Vec<u8>) -> Result<(), ErrState> {
-        // UTCの現在時刻をミリ秒で取得
+        // 現在のUTC時刻をミリ秒で取得
         let latest_access_time = Utc::now().timestamp_millis();
 
         let user_data = UserData {
@@ -280,8 +305,8 @@ impl User {
             user_id: user_id.to_string(),
             account_level: *account_level,
             perm: perm.clone(),
-            active_session: vec![session.to_vec()], // アクティブセッションは空で初期化
-            latest_access_time: latest_access_time, // 最新のアクセス時間を設定
+            active_session: vec![session.to_vec()], // アクティブセッションを1つだけ設定
+            latest_access_time, // 最新のアクセス時間を設定
         };
         self.db_create(&user_data).await?;
         self.set(&ruid, user_id, account_level, perm, session).await?;
@@ -292,16 +317,76 @@ impl User {
     pub async fn db_create(&self, user_data: &UserData) -> Result<(), ErrState> {
         let data = match serde_json::to_value(user_data) {
             Ok(data) => data,
-            Err(_) => return Err(ErrState::new(913, "ユーザーデータのシリアライズに失敗".to_string(), None)),
+            Err(_) => return Err(ErrState::new(913, "ユーザーデータのシリアライズに失敗しました".to_string(), None)),
         };
 
         self.db.d_new(&self.user_collection_name, &data).await.map_err(|e| {
-            ErrState::new(914, "ユーザーデータのデータベースへの保存に失敗".to_string(), Some(e))
+            ErrState::new(914, "ユーザーデータのデータベースへの保存に失敗しました".to_string(), Some(e))
         })?;
         Ok(())
     }
 
-    pub async fn tick() {
+    pub async fn db_save(&self, ruid: &u128) -> Result<(), ErrState> {
+        let user_data = self.get(ruid).await?;
+        let data = match serde_json::to_value(&user_data) {
+            Ok(data) => data,
+            Err(_) => return Err(ErrState::new(915, "ユーザーデータのシリアライズに失敗しました".to_string(), None)),
+        };
 
+        let query = json!({"ruid": ruid});
+        self.db.d_set(&self.user_collection_name, &query, &data).await.map_err(|e| {
+            ErrState::new(916, "ユーザーデータのデータベースへの保存に失敗しました".to_string(), Some(e))
+        })?;
+        Ok(())
+    }
+
+    pub async fn tick(&self) -> Result<(), ErrState> {
+        // 現在のUTC時刻をミリ秒で取得
+        let now = Utc::now().timestamp_millis();
+
+        // タイムアウト時間（例：1時間 = 3600000ミリ秒）
+        let timeout = 3600000; // 1時間
+
+        // 読み取りロックを取得して、タイムアウトしたユーザーの RUID のリストを収集
+        let timed_out_ruids: Vec<u128> = {
+            let users = match self.users.read() {
+                Ok(guard) => guard,
+                Err(_) => return Err(ErrState::new(917, "ユーザーデータの読み取りロック取得に失敗しました".to_string(), None)),
+            };
+
+            users.iter()
+                .filter_map(|(&ruid, user_data_option)| {
+                    if let Some(user_data) = user_data_option {
+                        if user_data.account_level >= 1 && now - user_data.latest_access_time > timeout {
+                            Some(ruid)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        };
+
+        // タイムアウトしたユーザーごとに処理を行う
+        for ruid in timed_out_ruids {
+            // 書き込みロックを取得してユーザーデータを更新
+            {
+                let mut users = match self.users.write() {
+                    Ok(guard) => guard,
+                    Err(_) => return Err(ErrState::new(917, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)),
+                };
+
+                if let Some(user_data_option) = users.get_mut(&ruid) {
+                    *user_data_option = None;
+                }
+            }
+
+            // データベースに保存
+            self.db_save(&ruid).await?;
+        }
+
+        Ok(())
     }
 }

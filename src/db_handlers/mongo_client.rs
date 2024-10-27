@@ -1,6 +1,6 @@
 use crate::state_services::err_set::ErrState;
 use crate::sys::init::AppConfig;
-use mongodb::options::{ClientOptions, FindOneOptions};
+use mongodb::options::{ClientOptions, FindOneOptions, UpdateOptions};
 use mongodb::{
     bson::{self, doc, oid::ObjectId, Bson, Document},
     Client, Database,
@@ -132,6 +132,94 @@ impl MongoClient {
         }
 
         Ok(None)
+    }
+
+    // JSON形式でドキュメントを更新
+    pub async fn d_upd(
+        &self,
+        collection: &str,
+        query: &Value,
+        update: &Value,
+    ) -> Result<u64, ErrState> {
+        let db_lock = self
+            .db
+            .lock()
+            .map_err(|_| ErrState::new(614, "データベースロックの取得に失敗".to_string(), None))?;
+
+        let coll = db_lock.collection::<Document>(collection);
+
+        // JSONクエリを BSONドキュメント に変換
+        let bson_query = bson::to_document(query)
+            .map_err(|_| ErrState::new(615, "JSONクエリのBSON変換に失敗".to_string(), None))?;
+
+        // JSON更新データを BSONドキュメント に変換
+        let bson_update = bson::to_document(update)
+            .map_err(|_| ErrState::new(616, "JSON更新データのBSON変換に失敗".to_string(), None))?;
+
+        let result = coll
+            .update_one(bson_query, bson_update, None)
+            .await
+            .map_err(|_| ErrState::new(617, "ドキュメントの更新に失敗".to_string(), None))?;
+
+        Ok(result.modified_count)
+    }
+
+    // 特定フィールドの部分更新（$set演算子を使用）
+    pub async fn d_set(
+        &self,
+        collection: &str,
+        query: &Value,
+        update: &Value,
+    ) -> Result<u64, ErrState> {
+        let db_lock = self.db.lock()
+            .map_err(|_| ErrState::new(614, "データベースロックの取得に失敗".to_string(), None))?;
+        
+        let coll= db_lock.collection::<Document>(collection);
+
+        // JSONクエリを BSON ドキュメントに変換
+        let bson_query = bson::to_document(query)
+            .map_err(|_| ErrState::new(615, "JSONクエリのBSON変換に失敗".to_string(), None))?;
+
+        // $set演算子を使用して部分更新のBSONドキュメントを作成
+        let bson_update = doc! {
+            "$set": bson::to_document(update)
+                .map_err(|_| ErrState::new(616, "JSON更新データのBSON変換に失敗".to_string(), None))?
+        };
+
+        // 更新を実行
+        let result = coll.update_one(bson_query, bson_update, None).await
+            .map_err(|_| ErrState::new(617, "ドキュメントの更新に失敗".to_string(), None))?;
+
+        Ok(result.modified_count)
+    }
+
+    // 特定フィールドを削除（$unset演算子を使用）
+    pub async fn d_unset(
+        &self,
+        collection: &str,
+        query: &Value,
+        fields: &Value,
+    ) -> Result<u64, ErrState> {
+        let db_lock = self.db.lock()
+            .map_err(|_| ErrState::new(614, "データベースロックの取得に失敗".to_string(), None))?;
+        
+        let coll= db_lock.collection::<Document>(collection);
+
+        // JSONクエリを BSON ドキュメントに変換
+        let bson_query = bson::to_document(query)
+            .map_err(|_| ErrState::new(615, "JSONクエリのBSON変換に失敗".to_string(), None))?;
+
+        // $unset演算子を使用して指定フィールドを削除
+        let bson_update = doc! {
+            "$unset": bson::to_document(fields)
+                .map_err(|_| ErrState::new(616, "JSON更新データのBSON変換に失敗".to_string(), None))?
+        };
+
+        // 更新を実行
+        let result = coll.update_one(bson_query, bson_update, None).await
+            .map_err(|_| ErrState::new(617, "ドキュメントの削除に失敗".to_string(), None))?;
+
+        Ok(result.modified_count)
     }
 }
 

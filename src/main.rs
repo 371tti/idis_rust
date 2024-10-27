@@ -21,14 +21,12 @@ use std::sync::Arc;
 //  load user module
 mod utils;
 mod sys;
-mod build_handlers;
 mod db_handlers;
 mod state_services;
 mod pipeline;
 mod actors;
 
-use crate::build_handlers::json_api::JsonApi;
-use crate::build_handlers::file_api::FileApi;
+
 use crate::utils::ruid::Ruid;
 use crate::utils::ruid::RuidGenerator;
 use crate::sys::init::AppConfig;

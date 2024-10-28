@@ -25,6 +25,7 @@ mod db_handlers;
 mod state_services;
 mod pipeline;
 mod actors;
+mod file_system;
 
 
 use crate::utils::ruid::Ruid;

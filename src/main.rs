@@ -51,10 +51,8 @@ async fn main() -> std::io::Result<()> {
 
     let app_config = AppConfig::new();
 
-    // `AppMod::new` を `await` して `AppMod` のインスタンスを取得
     let app_set_instance = AppSet::new(app_config.clone()).await;
 
-    // `AppMod` のインスタンスを `Arc` でラップし、`web::Data` に渡す
     let app_set = web::Data::new(app_set_instance);
 
     // サーバーの設定

@@ -21,7 +21,7 @@ impl Analyze for Processor {
         let mut api_key = None;
         let mut referer = None;
         let mut content_type = None;
-        let mut accept_type = Vec::new();
+        let mut accept_type = None;
         let mut user_agent = UserAgent::new(None, None, None, None, None, None, None);
 
         // POST, PUT, PATCHリクエストの場合のサーバーロック処理
@@ -99,42 +99,10 @@ impl Analyze for Processor {
             .map(|s| s.to_string());
 
         // Acceptヘッダー解析
-        let server_support_type: Vec<Mime> = self.app_set.config.server_supported_content_types.clone();
-        let accept_header = self.req.headers().get("Accept")
+        accept_type = self.req.headers().get("Accept")
             .and_then(|val| val.to_str().ok())
-            .unwrap_or("*/*");
+            .map(|s| s.to_string());
         
-        let mut accept_map: Vec<(Mime, f32)> = Vec::new();
-        for item in accept_header.split(',') {
-            let parts: Vec<&str> = item.split(';').collect();
-            let mime_str = parts[0].trim();
-            let quality = parts.iter()
-                .find(|p| p.starts_with("q="))
-                .and_then(|q| q[2..].parse::<f32>().ok())
-                .unwrap_or(1.0);
-            if let Ok(mime) = mime_str.parse::<Mime>() {
-                accept_map.push((mime, quality));
-            }
-        }
-
-        // サポートされているタイプをフィルタリング
-        let mut matching_types: Vec<(Mime, f32)> = Vec::new();
-        for (accepted_mime, q_value) in accept_map {
-            for supported_mime in &server_support_type {
-                if accepted_mime == *supported_mime
-                    || (accepted_mime.type_() == "*" && accepted_mime.subtype() == "*")
-                    || (accepted_mime.type_() == supported_mime.type_() && accepted_mime.subtype() == "*")
-                {
-                    if !matching_types.iter().any(|(m, _)| m == supported_mime) {
-                        matching_types.push((supported_mime.clone(), q_value));
-                    }
-                }
-            }
-        }
-
-        accept_type = matching_types.into_iter()
-            .map(|(mime, _)| mime.to_string())
-            .collect();
 
         // リクエストの各種データを保存
         self.state.reqest.method = method.to_string();
@@ -143,7 +111,7 @@ impl Analyze for Processor {
         self.state.reqest.user_agent = user_agent;
         self.state.reqest.content_type = content_type;
         self.state.reqest.referer = referer;
-        self.state.reqest.accept = json!(accept_type);
+        self.state.reqest.accept = accept_type;
         self.state.session_id = session_id;
         self.state.api_key = api_key;
         self.lock_this_server = lock_this_server;

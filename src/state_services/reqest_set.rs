@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, NaiveDateTime, Utc, TimeZone};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use serde_json::{json, Value};
 
@@ -12,7 +12,7 @@ pub struct Request {
     pub user_agent: UserAgent,
     pub referer: Option<String>,
     pub content_type: Option<String>,
-    pub accept: Value,
+    pub accept: Option<String>,
     pub timestamp: i64,
 }
 
@@ -26,7 +26,7 @@ impl Request {
             user_agent: UserAgent::new(None, None, None, None, None, None, None),
             referer: None,
             content_type: None,
-            accept: json!([]),
+            accept: None,
             timestamp: utc_timestamp,
         }
     }
@@ -45,7 +45,12 @@ impl Serialize for Request {
         state.serialize_field("referer", &self.referer)?;
         state.serialize_field("content_type", &self.content_type)?;
         state.serialize_field("accept", &self.accept)?;
-        state.serialize_field("timestamp", &format!("{:#x}", self.timestamp))?;
+        state.serialize_field(
+            "timestamp",
+            &DateTime::<Utc>::from_timestamp_millis(self.timestamp)
+                .ok_or_else(|| serde::ser::Error::custom("Invalid timestamp"))?
+                .to_rfc3339(),
+        )?;
         state.serialize_field("version", &"1.0.0")?; // Add version field
         state.serialize_field("type", &10)?; // Add type field
         state.end()

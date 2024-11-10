@@ -22,7 +22,6 @@ pub struct AppConfig {
     pub server_cluster_enable: bool,
     pub server_cluster_lock_content_len: u64,
     pub server_id: u16,
-    pub server_supported_mime_types: HashSet<Mime>,
     pub mongoDB_addr: String,
     pub mongoDB_name: String,
     pub db_user_collection_name: String,
@@ -53,7 +52,6 @@ impl AppConfig {
             server_cluster_enable: false,
             server_cluster_lock_content_len: 1024,
             server_id: 0xffff,
-            server_supported_mime_types: AppConfig::supported_content_types(),
             mongoDB_addr: "mongodb://192.168.0.48:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.2.5".to_string(),
             mongoDB_name: "Idis-rust-dev".to_string(),
             db_user_collection_name: "users".to_string(),
@@ -69,21 +67,6 @@ impl AppConfig {
         };
         app_config
     }
-    fn supported_content_types() -> HashMap<Mime> {
-        let mut content_types = HashSet::new();
-        content_types.insert(mime::TEXT_PLAIN);
-        content_types.insert(mime::TEXT_HTML);
-        content_types.insert(mime::TEXT_CSS);
-        content_types.insert(mime::TEXT_JAVASCRIPT);
-        content_types.insert(mime::TEXT_XML);
-        content_types.insert(mime::APPLICATION_JSON);
-        content_types.insert(mime::APPLICATION_OCTET_STREAM);
-        content_types.insert(mime::IMAGE_JPEG);
-        content_types.insert(mime::IMAGE_PNG);
-        content_types
-    }
-
-
 }
 
 #[derive(Clone)]

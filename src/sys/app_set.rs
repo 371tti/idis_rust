@@ -1,8 +1,10 @@
 use std::sync::Arc;
+use mime_guess::mime;
+
 use crate::{
     db_handlers::mongo_client::MongoClient, 
     state_services::{session::Session, user::User}, 
-    utils::ruid::RuidGenerator
+    utils::{mime::MimeDetector, ruid::RuidGenerator}
 };
 use super::{init::AppConfig, ws::WsConnectionSet};
 
@@ -13,6 +15,7 @@ pub struct AppSet {
     pub config: AppConfig,
     pub user: User,
     pub ws: WsConnectionSet,
+    pub mime_detector: MimeDetector,
 }
 
 impl AppSet {
@@ -26,6 +29,7 @@ impl AppSet {
         );
         let ws = WsConnectionSet::new(&app_config);
         let user = User::new(&app_config, Arc::clone(&db));
+        let mime_detector = MimeDetector::new();
 
         Self {
             session: session.await,
@@ -34,6 +38,7 @@ impl AppSet {
             config: app_config.clone(),
             user: user.await,
             ws,
+            mime_detector,
         }
     }
 }

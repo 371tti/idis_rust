@@ -24,7 +24,6 @@ impl FileSystem {
     pub async fn create() {
 
 
-        MetaData::new( 0, "".to_string(), "".to_string(), "".to_string(), 0, 0, 0, 0, 0, Default::default(), "".to_string(), Perm::new(0, 0, 0, 0, 0), 0);
     }
 
 

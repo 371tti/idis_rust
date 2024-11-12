@@ -8,6 +8,7 @@ pub struct MetaData {
     pub path: String,
     pub data_type: String, //  MIME type | application/folder
     pub size: u64,
+    pub links: Vec<u128> ,
     pub create_time: i64,
     pub update_time: i64,
     pub last_access_time: i64,
@@ -27,6 +28,7 @@ impl MetaData {
             path,
             data_type,
             size,
+            links: Vec::new(),
             create_time,
             update_time,
             last_access_time,
@@ -38,4 +40,3 @@ impl MetaData {
         }
     }
 }
-

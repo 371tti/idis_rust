@@ -1,10 +1,12 @@
 use chrono::{DateTime, NaiveDateTime, Utc, TimeZone};
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-
+use serde_with::{serde_as, DisplayFromStr};
 use super::user_agent_set::UserAgent;
+use crate::utils::custom_serializers_adapters::TimeStamp;
 
-#[derive(Clone)]
+#[serde_as]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Request {
     pub path: String,
     pub method: String,
@@ -13,6 +15,7 @@ pub struct Request {
     pub referer: Option<String>,
     pub content_type: Option<String>,
     pub accept: Option<String>,
+    #[serde_as(as = "TimeStamp")]
     pub timestamp: i64,
 }
 
@@ -29,30 +32,5 @@ impl Request {
             accept: None,
             timestamp: utc_timestamp,
         }
-    }
-}
-
-impl Serialize for Request {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("Request", 10)?; // Updated to 10 fields
-        state.serialize_field("path", &self.path)?;
-        state.serialize_field("method", &self.method)?;
-        state.serialize_field("url_query", &self.url_query)?;
-        state.serialize_field("user_agent", &self.user_agent)?;
-        state.serialize_field("referer", &self.referer)?;
-        state.serialize_field("content_type", &self.content_type)?;
-        state.serialize_field("accept", &self.accept)?;
-        state.serialize_field(
-            "timestamp",
-            &DateTime::<Utc>::from_timestamp_millis(self.timestamp)
-                .ok_or_else(|| serde::ser::Error::custom("Invalid timestamp"))?
-                .to_rfc3339(),
-        )?;
-        state.serialize_field("version", &"1.0.0")?; // Add version field
-        state.serialize_field("type", &10)?; // Add type field
-        state.end()
     }
 }

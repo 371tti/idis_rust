@@ -11,127 +11,28 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::json;
 use serde::ser::{SerializeStruct, Serializer};
 
+
 use crate::sys::init::AppConfig;
 use crate::db_handlers::mongo_client::MongoClient;
 
 use super::err_set::ErrState;
 use crate::utils::base64;
 
-#[derive(Clone, Default)]
+use serde_with::{serde_as, DisplayFromStr};
+use crate::utils::custom_serializers_adapters::{Hex, Base64};
+
+#[serde_as]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct UserData {
+    #[serde_as(as = "Hex")]
     pub ruid: u128,
     pub user_id: String,
     pub account_level: i32,
+    #[serde_as(as = "Vec<Hex>")]
     pub perm: Vec<u128>,
+    #[serde_as(as = "Vec<Base64>")]
     pub active_session: Vec<Vec<u8>>,
     pub latest_access_time: i64, // UTCのミリ秒を格納
-}
-
-// シリアライズの実装
-impl Serialize for UserData {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("UserData", 7)?;
-        state.serialize_field("ruid", &self.ruid)?;
-        state.serialize_field("user_id", &self.user_id)?;
-        state.serialize_field("account_level", &self.account_level)?;
-
-        // `perm`を16進数文字列に変換してシリアライズ
-        let perm_hex: Vec<String> = self.perm.iter().map(|p| format!("{:x}", p)).collect();
-        state.serialize_field("perm", &perm_hex)?;
-
-        // `active_session`の各セッションIDをBase64エンコードしてシリアライズ
-        let session_ids_base64: Vec<String> = self.active_session.iter()
-            .map(|session| base64::encode_base64(session))
-            .collect();
-        state.serialize_field("active_session", &session_ids_base64)?;
-
-        // `latest_access_time`を16進数文字列に変換してシリアライズ
-        state.serialize_field("latest_access_time", &format!("{:x}", self.latest_access_time))?;
-
-        state.end()
-    }
-}
-
-// デシリアライズの実装
-impl<'de> Deserialize<'de> for UserData {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(field_identifier, rename_all = "snake_case")]
-        enum Field { Ruid, UserId, AccountLevel, Perm, ActiveSession, LatestAccessTime }
-
-        struct UserDataVisitor;
-
-        impl<'de> Visitor<'de> for UserDataVisitor {
-            type Value = UserData;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("struct UserData")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<UserData, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut ruid = None;
-                let mut user_id = None;
-                let mut account_level = None;
-                let mut perm = None;
-                let mut active_session = None;
-                let mut latest_access_time = None;
-
-                while let Some(key) = map.next_key()? {
-                    match key {
-                        Field::Ruid => {
-                            ruid = Some(map.next_value()?);
-                        }
-                        Field::UserId => {
-                            user_id = Some(map.next_value()?);
-                        }
-                        Field::AccountLevel => {
-                            account_level = Some(map.next_value()?);
-                        }
-                        Field::Perm => {
-                            let perm_hex: Vec<String> = map.next_value()?;
-                            perm = Some(perm_hex.into_iter()
-                                .map(|hex| u128::from_str_radix(&hex, 16).map_err(|_| de::Error::custom("無効な perm フォーマットです")))
-                                .collect::<Result<Vec<_>, _>>()?);
-                        }
-                        Field::ActiveSession => {
-                            let session_ids_base64: Vec<String> = map.next_value()?;
-                            active_session = Some(session_ids_base64.into_iter()
-                                .map(|s| base64::decode_base64(&s).map_err(|_| de::Error::custom("無効な active_session フォーマットです")))
-                                .collect::<Result<Vec<_>, _>>()?);
-                        }
-                        Field::LatestAccessTime => {
-                            let hex_time: String = map.next_value()?;
-                            latest_access_time = Some(i64::from_str_radix(&hex_time, 16).map_err(|_| de::Error::custom("無効な latest_access_time フォーマットです"))?);
-                        }
-                    }
-                }
-
-                // 必須フィールドが存在しない場合はエラーを返す
-                Ok(UserData {
-                    ruid: ruid.ok_or_else(|| de::Error::custom("ruid がありません"))?,
-                    user_id: user_id.ok_or_else(|| de::Error::custom("user_id がありません"))?,
-                    account_level: account_level.ok_or_else(|| de::Error::custom("account_level がありません"))?,
-                    perm: perm.ok_or_else(|| de::Error::custom("perm がありません"))?,
-                    active_session: active_session.ok_or_else(|| de::Error::custom("active_session がありません"))?,
-                    latest_access_time: latest_access_time.ok_or_else(|| de::Error::custom("latest_access_time がありません"))?,
-                })
-            }
-        }
-
-        const FIELDS: &'static [&'static str] = &[
-            "ruid", "user_id", "account_level", "perm", "active_session", "latest_access_time"
-        ];
-        deserializer.deserialize_struct("UserData", FIELDS, UserDataVisitor)
-    }
 }
 
 pub struct User {

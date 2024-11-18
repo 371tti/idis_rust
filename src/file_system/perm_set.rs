@@ -1,36 +1,16 @@
 use std::{collections::{btree_set::Intersection, HashSet}, fmt, str};
 
 use serde::{de::{self, MapAccess, Visitor}, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
-
-mod hex_u128_set {
-    use super::*;
-    
-    pub fn serialize<S>(set: &HashSet<u128>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let hex_set: Vec<String> = set.iter().map(|&num| format!("{:x}", num)).collect();
-        hex_set.serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<HashSet<u128>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let hex_set: Vec<String> = Vec::deserialize(deserializer)?;
-        hex_set
-            .into_iter()
-            .map(|hex| u128::from_str_radix(&hex, 16).map_err(de::Error::custom))
-            .collect()
-    }
-}
+use serde_with::{serde_as, DisplayFromStr};
+use crate::utils::custom_serializers_adapters::Hex;
 
 // AccessControl 構造体
+#[serde_as]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AccessControl {
-    #[serde(with = "hex_u128_set")]
+   #[serde_as(as = "HashSet<Hex>")]
     pub allow: HashSet<u128>,
-    #[serde(with = "hex_u128_set")]
+    #[serde_as(as = "HashSet<Hex>")]
     pub deny: HashSet<u128>,
 }
 
@@ -38,6 +18,7 @@ pub struct AccessControl {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Perm {
     pub create: AccessControl,
+    pub edit: AccessControl,
     pub read: AccessControl,
     pub delete: AccessControl,
     pub reaction: AccessControl,
@@ -48,16 +29,18 @@ pub struct Perm {
 pub struct AllowAccess {
     pub create: bool,
     pub read: bool,
+    pub edit: bool,
     pub delete: bool,
     pub reaction: bool,
     pub share: bool,
 }
 
 impl AllowAccess {
-    pub fn new(create: bool, read: bool, delete: bool, reaction: bool, share: bool) -> Self {
+    pub fn new(create: bool, read: bool, edit: bool, delete: bool, reaction: bool, share: bool) -> Self {
         Self {
             create,
             read,
+            edit,
             delete,
             reaction,
             share,
@@ -67,10 +50,11 @@ impl AllowAccess {
 
 
 impl Perm {
-    pub fn new(create: AccessControl, read: AccessControl, delete: AccessControl, reaction: AccessControl, share: AccessControl) -> Self {
+    pub fn new(create: AccessControl, read: AccessControl, edit: AccessControl, delete: AccessControl, reaction: AccessControl, share: AccessControl) -> Self {
         Self {
             create,
             read,
+            edit,
             delete,
             reaction,
             share,
@@ -81,6 +65,7 @@ impl Perm {
         AllowAccess::new(
             self.is_allowed(&perm, &self.create.allow, &self.create.deny),
             self.is_allowed(&perm, &self.read.allow, &self.read.deny),
+            self.is_allowed(&perm, &self.edit.allow, &self.edit.deny),
             self.is_allowed(&perm, &self.delete.allow, &self.delete.deny),
             self.is_allowed(&perm, &self.reaction.allow, &self.reaction.deny),
             self.is_allowed(&perm, &self.share.allow, &self.share.deny),

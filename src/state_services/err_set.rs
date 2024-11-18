@@ -1,10 +1,14 @@
-use serde::ser::{Serialize, Serializer, SerializeStruct};
+use serde::{Deserialize, Serialize};
 use chrono::Utc;
+use serde_with::{serde_as, DisplayFromStr};
+use crate::utils::custom_serializers_adapters::TimeStamp;
 
-#[derive(Debug)]
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrState {
     pub process_num: u64,
     pub message: String,
+    #[serde_as(as = "TimeStamp")]
     pub timestamp: i64,
     pub parent: Option<Box<ErrState>>, // 親エラーを保持するフィールドを追加
     pub is_root: bool,
@@ -27,31 +31,5 @@ impl ErrState {
             parent: parent_new.map(Box::new), // 親エラーをBoxでラップして保持
             is_root: true,
         }
-    }
-}
-
-// カスタムシリアライズの実装
-impl Serialize for ErrState {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // シリアライズするフィールドをカスタマイズ
-        let mut state = serializer.serialize_struct("ErrState", 6)?;
-        state.serialize_field("process_num", &self.process_num)?;
-        state.serialize_field("message", &self.message)?;
-        state.serialize_field("timestamp", &self.timestamp)?;
-        
-        if let Some(ref parent) = self.parent {
-            state.serialize_field("parent", parent)?;
-        } else {
-            state.serialize_field("parent", &None::<ErrState>)?;
-        }
-
-        if self.is_root {
-            state.serialize_field("version", "1.0.0")?;
-            state.serialize_field("type", &0)?;
-        }
-        state.end()
     }
 }

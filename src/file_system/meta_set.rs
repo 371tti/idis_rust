@@ -17,11 +17,12 @@ pub struct MetaData {
     pub description: String,
     pub perm: Perm,
     pub icon: u128,
+    pub viewer: u128,
 }
 
 
 impl MetaData {
-    pub fn new(ruid: u128, name: String, path: String, data_type: String, size: u64, create_time: i64, update_time: i64, last_access_time: i64, viws: u64, reaction: HashMap<u128, u128>, description: String, perm: Perm, icon: u128) -> Self {
+    pub fn new(ruid: u128, name: String, path: String, data_type: String, size: u64, create_time: i64, update_time: i64, last_access_time: i64, viws: u64, reaction: HashMap<u128, u128>, description: String, perm: Perm, icon: u128, viewer: u128) -> Self {
         Self {
             ruid,
             name,
@@ -37,6 +38,7 @@ impl MetaData {
             description,
             perm,
             icon,
+            viewer,
         }
-    }
+    } 
 }

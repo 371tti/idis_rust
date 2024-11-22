@@ -30,14 +30,10 @@ impl FileSystem {
     }
 
 
-    pub async  fn meta_create(name: String, path: String, size: u64, perm: Perm, icon: Option<u128>) -> MetaData{
-        
-        MetaData::new(0, name, path, "application/folder".to_string(), size, 0, 0, 0, 0, Default::default(), "".to_string(), perm, icon.unwrap_or(0))
-    }
+    pub async  fn meta_create(name: String, path: String, size: u64, perm: Perm, icon: Option<u128>) {
 
-    pub async  fn save(&self, mut payload: web::Payload) {
+      }
 
-    }
 
 
 }

@@ -32,7 +32,6 @@ pub struct AppConfig {
     pub session_default_capacity: usize,
     pub session_rng: ChaCha20Rng,
     pub api_key_len_byte: usize,
-    pub ruid_rng: ChaCha20Rng,
     pub ruid_prefix: Ruid_prefix_templates,
 }
 
@@ -62,7 +61,6 @@ impl AppConfig {
             session_default_capacity: 100000,
             session_rng: ChaCha20Rng::from_entropy(),
             api_key_len_byte: 32,
-            ruid_rng: ChaCha20Rng::from_entropy(),
             ruid_prefix: Ruid_prefix_templates::new(),
         };
         app_config

@@ -221,6 +221,24 @@ impl MongoClient {
 
         Ok(result.modified_count)
     }
+
+    // ドキュメントの削除
+    pub async fn d_del(&self, collection: &str, query: &Value) -> Result<u64, ErrState> {
+        let db_lock = self.db.lock()
+            .map_err(|_| ErrState::new(614, "データベースロックの取得に失敗".to_string(), None))?;
+        
+        let coll= db_lock.collection::<Document>(collection);
+
+        // JSONクエリを BSON ドキュメントに変換
+        let bson_query = bson::to_document(query)
+            .map_err(|_| ErrState::new(615, "JSONクエリのBSON変換に失敗".to_string(), None))?;
+
+        // 削除を実行
+        let result = coll.delete_one(bson_query, None).await
+            .map_err(|_| ErrState::new(617, "ドキュメントの削除に失敗".to_string(), None))?;
+
+        Ok(result.deleted_count)
+    }
 }
 
 // 手動でクローン実装

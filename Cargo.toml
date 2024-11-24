@@ -27,3 +27,5 @@ woothee = "0.13.0"
 num = "0.4"
 num-traits = "0.2"
 serde_with = "1.14"
+ruid-set = { path = "./ruid" }
+flurry = "0.5.2"

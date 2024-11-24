@@ -24,7 +24,7 @@ pub struct Session {
 
 impl Session {
     // コンストラクタ
-    pub async fn new(app_config: &AppConfig) -> Self {
+    pub fn new(app_config: &AppConfig) -> Self {
         Session {
             sessions: RwLock::new(HashMap::with_capacity(app_config.session_default_capacity)),
             len: app_config.session_len_byte,
@@ -52,7 +52,7 @@ impl Session {
     }
 
     // ユーザーを設定
-    pub async fn user_set(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, ErrState> {
+    pub async fn set_now_user(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, ErrState> {
         let mut sessions = self.sessions.write().map_err(|_| {
             ErrState::new(402, "セッションのロックに失敗".to_string(), None)
         })?;
@@ -71,7 +71,7 @@ impl Session {
     }
 
     // ユーザーを取得
-    pub async fn user(&self, session_vec: Vec<u8>) -> Result<Option<u128>, ErrState> {
+    pub async fn get_now_user(&self, session_vec: Vec<u8>) -> Result<Option<u128>, ErrState> {
         let sessions = self.sessions.read().map_err(|_| {
             ErrState::new(405, "セッションのロックに失敗".to_string(), None)
         })?;
@@ -97,7 +97,7 @@ impl Session {
     }
 
     // ユーザーを追加
-    pub async fn add(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, ErrState> {
+    pub async fn add_user(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, ErrState> {
         let mut sessions = self.sessions.write().map_err(|_| {
             ErrState::new(409, "セッションのロックに失敗".to_string(), None)
         })?;
@@ -111,7 +111,7 @@ impl Session {
     }
 
     // ユーザーを削除
-    pub async fn rem(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, ErrState> {
+    pub async fn rem_user(&self, session_vec: Vec<u8>, ruid: u128) -> Result<Option<SessionData>, ErrState> {
         let mut sessions = self.sessions.write().map_err(|_| {
             ErrState::new(411, "セッションのロックに失敗".to_string(), None)
         })?;

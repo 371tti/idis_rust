@@ -1,16 +1,9 @@
-use std::fmt;
-use std::sync::{Arc, RwLock};
-use std::collections::HashMap;
-
-use actix::fut::future::result;
+use std::sync::Arc;
+use flurry::HashMap as FlurryHashMap;
 use actix_web::web::Json;
 use chrono::Utc;
-use mongodb::change_stream::session;
-use serde::de::{self, MapAccess, Visitor};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use serde::ser::{SerializeStruct, Serializer};
-
 
 use crate::sys::init::AppConfig;
 use crate::db_handlers::mongo_client::MongoClient;
@@ -18,7 +11,7 @@ use crate::db_handlers::mongo_client::MongoClient;
 use super::err_set::ErrState;
 use crate::utils::base64;
 
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{serde_as};
 use crate::utils::custom_serializers_adapters::{Hex, Base64};
 
 #[serde_as]
@@ -36,151 +29,103 @@ pub struct UserData {
 }
 
 pub struct User {
-    pub users: RwLock<HashMap<u128, Option<UserData>>>,
-    pub id_to_ruid: RwLock<HashMap<String, u128>>,
+    pub users: FlurryHashMap<u128, Arc<UserData>>,
+    pub id_to_ruid: FlurryHashMap<String, u128>,
     pub db: Arc<MongoClient>,
     pub user_collection_name: String,
     pub user_data_timeout: i64,
 }
 
 impl User {
-    pub async fn new(app_config: &AppConfig, db: Arc<MongoClient>) -> Self {
+    pub fn new(app_config: &AppConfig, db: Arc<MongoClient>) -> Self {
         Self {
-            users: RwLock::new(HashMap::new()),
-            id_to_ruid: RwLock::new(HashMap::new()),
-            db: db,
+            users: FlurryHashMap::new(),
+            id_to_ruid: FlurryHashMap::new(),
+            db,
             user_collection_name: app_config.db_user_collection_name.clone(),
             user_data_timeout: app_config.user_data_timeout,
         }
     }
 
     pub async fn update_last_access_time(&self, ruid: &u128) -> Result<(), ErrState> {
-        // 書き込みロックを取得
-        let mut users = match self.users.write() {
-            Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(900, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)),
-        };
+        let guard = self.users.guard();
 
         // 現在のUTC時刻をミリ秒で取得
         let latest_access_time = Utc::now().timestamp_millis();
 
-        // 指定された RUID が存在する場合に `latest_access_time` を更新
-        if let Some(user_data_option) = users.get_mut(ruid) {
-            if let Some(user_data) = user_data_option {
-                user_data.latest_access_time = latest_access_time;
-            } else {
-                return Err(ErrState::new(901, "ユーザーデータが存在しません".to_string(), None));
-            }
-        } else {
-            return Err(ErrState::new(902, "指定された RUID が存在しません".to_string(), None));
-        }
+        // ユーザーデータを取得
+        if let Some(user_data) = self.users.get(ruid, &guard) {
+            // 新しい UserData を作成し、最新アクセス時間を更新
+            let new_user_data = Arc::new(UserData {
+                latest_access_time,
+                ..(**user_data).clone()
+            });
 
-        Ok(())
+            // 更新されたデータを再度挿入
+            self.users.insert(*ruid, new_user_data, &guard);
+            Ok(())
+        } else {
+            Err(ErrState::new(902, "指定された RUID が存在しません".to_string(), None))
+        }
     }
 
     pub async fn set(&self, ruid: &u128, user_id: &str, account_level: &i32, perm: &Vec<u128>, session: &Vec<u8>) -> Result<(), ErrState> {
-        // 書き込みロックを取得
-        let mut users = match self.users.write() {
-            Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(903, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)),
-        };
-        let mut id_to_ruid = match self.id_to_ruid.write() {
-            Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(904, "ユーザーIDディクショナリの書き込みロック取得に失敗しました".to_string(), None)),
-        };
-        // 現在のUTC時刻をミリ秒で取得
+        let guard = self.users.guard();
+        let id_guard = self.id_to_ruid.guard();
+
         let latest_access_time = Utc::now().timestamp_millis();
 
-        // データの追加
-        users.insert(
-            *ruid, 
-            Some(UserData {
-                ruid: *ruid,
-                user_id: user_id.to_string(),
-                account_level: *account_level,
-                perm: perm.clone(),
-                active_session: vec![session.to_vec()], // アクティブセッションを1つだけ設定
-                latest_access_time, // 最新のアクセス時間を設定
-            })
-        );
+        let user_data = Arc::new(UserData {
+            ruid: *ruid,
+            user_id: user_id.to_string(),
+            account_level: *account_level,
+            perm: perm.clone(),
+            active_session: vec![session.to_vec()],
+            latest_access_time,
+        });
 
-        // account_level が 0 でない場合のみ id_to_ruid に登録
+        self.users.insert(*ruid, user_data.clone(), &guard);
+
         if *account_level != 0 {
-            id_to_ruid.insert(user_id.to_string(), *ruid);
+            self.id_to_ruid.insert(user_id.to_string(), *ruid, &id_guard);
         }
 
-        // 正常終了
         Ok(())
     }
 
     pub async fn remove(&self, ruid: &u128) -> Result<(), ErrState> {
-        // 書き込みロックを取得
-        let mut users = match self.users.write() {
-            Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(905, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)),
-        };
-        let mut id_to_ruid = match self.id_to_ruid.write() {
-            Ok(guard) => guard,
-            Err(_) => return Err(ErrState::new(906, "ユーザーIDディクショナリの書き込みロック取得に失敗しました".to_string(), None)),
-        };
+        let guard = self.users.guard();
+        let id_guard = self.id_to_ruid.guard();
 
-        // ユーザーの削除
-        if let Some(user_data_option) = users.remove(ruid) {
-            // account_level が 0 でない場合のみ id_to_ruid から削除
-            if let Some(user_data) = user_data_option {
-                if user_data.account_level != 0 {
-                    id_to_ruid.remove(&user_data.user_id);
-                }
+        if let Some(user_data) = self.users.remove(ruid, &guard) {
+            if user_data.account_level != 0 {
+                self.id_to_ruid.remove(&user_data.user_id, &id_guard);
+                // データベースから削除
+                self.db_remove(ruid).await?;
             }
-            // 削除成功
             Ok(())
         } else {
-            // 指定された RUID が存在しない場合
             Err(ErrState::new(907, "指定された RUID が存在しません".to_string(), None))
         }
     }
 
-    pub async fn get(&self, ruid: &u128) -> Result<UserData, ErrState> {
-        // まず、読み取りロックを取得してユーザーデータを探す
-        {
-            let users = self.users.read().map_err(|_| {
-                ErrState::new(908, "ユーザーデータの読み取りロック取得に失敗しました".to_string(), None)
-            })?;
-            
-            if let Some(user_data_option) = users.get(ruid) {
-                if let Some(user_data) = user_data_option {
-                    return Ok(user_data.clone()); // クローンを返す
-                } else {
-                    return Err(ErrState::new(909, "ユーザーデータが存在しません".to_string(), None));
-                }
-            }
-        } // この時点で読み取りロックが解放される
-    
+    pub async fn get(&self, ruid: &u128) -> Result<Arc<UserData>, ErrState> {
+        let guard = self.users.guard();
+
+        if let Some(user_data) = self.users.get(ruid, &guard) {
+            return Ok(user_data.clone());
+        }
+
         // データベースから取得
-        let user_data = match self.db_get(ruid).await {
-            Ok(user_data) => user_data,
-            Err(e) => return Err(e),
-        };
-    
-        // 書き込みロックを取得してキャッシュにデータを挿入
-        {
-            let mut users = self.users.write().map_err(|_| {
-                ErrState::new(908, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)
-            })?;
-    
-            // もう一度チェックして、他のスレッドがすでにデータを挿入していないか確認
-            if let Some(user_data_option) = users.get(ruid) {
-                if let Some(existing_user_data) = user_data_option {
-                    return Ok(existing_user_data.clone()); // 他のスレッドが挿入していた場合、そのデータを返す
-                }
-            }
-    
-            users.insert(*ruid, Some(user_data.clone()));
-        } // 書き込みロックを解放
-    
-        Ok(user_data)
+        let user_data = self.db_get(ruid).await?;
+        let user_data_arc = Arc::new(user_data);
+
+        // キャッシュに挿入
+        self.users.insert(*ruid, user_data_arc.clone(), &guard);
+
+        Ok(user_data_arc)
     }
-    
+
     pub async fn db_get(&self, ruid: &u128) -> Result<UserData, ErrState> {
         let query = json!({"ruid": ruid});
         let data = match self.db.d_get(&self.user_collection_name, &query, None).await {
@@ -211,7 +156,7 @@ impl User {
         };
         self.db_create(&user_data).await?;
         self.set(&ruid, user_id, account_level, perm, session).await?;
-        
+
         Ok(())
     }
 
@@ -229,7 +174,7 @@ impl User {
 
     pub async fn db_save(&self, ruid: &u128) -> Result<(), ErrState> {
         let user_data = self.get(ruid).await?;
-        let data = match serde_json::to_value(&user_data) {
+        let data = match serde_json::to_value(&*user_data) {
             Ok(data) => data,
             Err(_) => return Err(ErrState::new(915, "ユーザーデータのシリアライズに失敗しました".to_string(), None)),
         };
@@ -241,50 +186,33 @@ impl User {
         Ok(())
     }
 
+    pub async fn db_remove(&self, ruid: &u128) -> Result<(), ErrState> {
+        let query = json!({"ruid": ruid});
+        self.db.d_del(&self.user_collection_name, &query).await.map_err(|e| {
+            ErrState::new(918, "ユーザーデータのデータベースからの削除に失敗しました".to_string(), Some(e))
+        })?;
+        Ok(())
+    }
+
     pub async fn tick(&self) -> Result<(), ErrState> {
-        // 現在のUTC時刻をミリ秒で取得
+        let guard = self.users.guard();
         let now = Utc::now().timestamp_millis();
+        let timeout = self.user_data_timeout; // 例：3600000ミリ秒（1時間）
 
-        // タイムアウト時間（例：1時間 = 3600000ミリ秒）
-        let timeout = 3600000; // 1時間
+        let mut timed_out_ruids = Vec::new();
 
-        // 読み取りロックを取得して、タイムアウトしたユーザーの RUID のリストを収集
-        let timed_out_ruids: Vec<u128> = {
-            let users = match self.users.read() {
-                Ok(guard) => guard,
-                Err(_) => return Err(ErrState::new(917, "ユーザーデータの読み取りロック取得に失敗しました".to_string(), None)),
-            };
-
-            users.iter()
-                .filter_map(|(&ruid, user_data_option)| {
-                    if let Some(user_data) = user_data_option {
-                        if user_data.account_level >= 1 && now - user_data.latest_access_time > timeout {
-                            Some(ruid)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        };
-
-        // タイムアウトしたユーザーごとに処理を行う
-        for ruid in timed_out_ruids {
-            // 書き込みロックを取得してユーザーデータを更新
-            {
-                let mut users = match self.users.write() {
-                    Ok(guard) => guard,
-                    Err(_) => return Err(ErrState::new(917, "ユーザーデータの書き込みロック取得に失敗しました".to_string(), None)),
-                };
-
-                if let Some(user_data_option) = users.get_mut(&ruid) {
-                    *user_data_option = None;
+        // イテレータで RUID を収集
+        for ruid in self.users.iter(&guard).map(|(ruid, _)| *ruid) {
+            if let Some(user_data) = self.users.get(&ruid, &guard) {
+                if user_data.account_level >= 1 && now - user_data.latest_access_time > timeout {
+                    timed_out_ruids.push(ruid);
                 }
             }
+        }
 
-            // データベースに保存
+        // タイムアウトしたユーザーを削除
+        for ruid in timed_out_ruids {
+            self.users.remove(&ruid, &guard);
             self.db_save(&ruid).await?;
         }
 

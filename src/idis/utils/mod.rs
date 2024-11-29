@@ -1,0 +1,1 @@
+pub mod custom_serializers_adapters;

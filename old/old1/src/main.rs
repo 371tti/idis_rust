@@ -3,20 +3,43 @@ IDIS RUST version
 author 371tti
 
 */
-mod idis;
 
 use actix_web::{dev, http};
 use actix_web::middleware::ErrorHandlerResponse;
 use actix_web::{get, web, App, HttpServer, Responder, middleware::Logger, HttpResponse, HttpRequest};
 use env_logger::Env;
+use pipeline::processor::Processor;
+use sys::app_set::AppSet;
+use std::f64::consts;
+use std::{clone, string};
+use std::sync::Mutex;
+use serde_json::{Value, json};
+use std::path::PathBuf;
+use std::ptr;
+use std::sync::Arc;
 
-// #[actix_web::route("/{tail:.*}", method = "GET", method = "POST", method = "PUT", method = "DELETE", method = "PATCH")]
-// async fn catch_all(app_set: web::Data<AppSet>, req: HttpRequest, body_stream: web::Payload) -> HttpResponse {
+//  load user module
+mod utils;
+mod sys;
+mod db_handlers;
+mod state_services;
+mod pipeline;
+mod actors;
+mod file_system;
 
-//     let processor = Processor::new(app_set, body_stream, req);
 
-//     processor.run().await
-// }
+
+use crate::sys::init::AppConfig;
+
+
+
+#[actix_web::route("/{tail:.*}", method = "GET", method = "POST", method = "PUT", method = "DELETE", method = "PATCH")]
+async fn catch_all(app_set: web::Data<AppSet>, req: HttpRequest, body_stream: web::Payload) -> HttpResponse {
+
+    let processor = Processor::new(app_set, body_stream, req);
+
+    processor.run().await
+}
 
 
 #[actix_web::main]
@@ -24,7 +47,11 @@ async fn main() -> std::io::Result<()> {
     // ロガーの初期化
     env_logger::init_from_env(Env::default().default_filter_or("debug"));
 
-    info!("IDIS RUST version");    
+    let app_config = AppConfig::new();
+
+    let app_set_instance = AppSet::new(app_config.clone()).await;
+
+    let app_set = web::Data::new(app_set_instance);
 
     // サーバーの設定
     let server = HttpServer::new(move || {

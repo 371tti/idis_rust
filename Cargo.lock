@@ -1074,6 +1074,7 @@ dependencies = [
  "flurry",
  "futures",
  "futures-util",
+ "log",
  "mime_guess",
  "mongodb",
  "num",

@@ -9,6 +9,7 @@ use actix_web::{dev, http};
 use actix_web::middleware::ErrorHandlerResponse;
 use actix_web::{get, web, App, HttpServer, Responder, middleware::Logger, HttpResponse, HttpRequest};
 use env_logger::Env;
+use log::info;
 
 // #[actix_web::route("/{tail:.*}", method = "GET", method = "POST", method = "PUT", method = "DELETE", method = "PATCH")]
 // async fn catch_all(app_set: web::Data<AppSet>, req: HttpRequest, body_stream: web::Payload) -> HttpResponse {

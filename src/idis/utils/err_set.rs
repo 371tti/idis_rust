@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
 use serde_with::{serde_as, DisplayFromStr};
-use crate::utils::custom_serializers_adapters::TimeStamp;
+use super::custom_serializers_adapters::TimeStamp;
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]

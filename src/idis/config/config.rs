@@ -1,3 +1,5 @@
+use super::language::Lang;
+
 pub struct Config {
-    pub ss: usize,
+    pub ms: Lang,
 }

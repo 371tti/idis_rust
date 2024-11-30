@@ -8,3 +8,9 @@ pub struct IdisCore {
     pub processor: Processor,
     pub flame_set
 }
+
+impl IdisCore {
+    pub fn new() {
+        let config = Load
+    }
+}

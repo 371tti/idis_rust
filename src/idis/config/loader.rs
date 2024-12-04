@@ -14,9 +14,6 @@ impl ConfigLoader {
     }
 
     pub fn load_config(&self) -> Config {
-
-
-
         let ms = 
         Config {
             ss: 0,

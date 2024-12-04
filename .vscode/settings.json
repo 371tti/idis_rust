@@ -6,6 +6,7 @@
         "rust-analyzer.checkOnSave.enable": true,
         "rust-analyzer.inlayHints.enable": true,
         "rust-analyzer.lens.enable": true,
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "liveServer.settings.port": 80
     
 }

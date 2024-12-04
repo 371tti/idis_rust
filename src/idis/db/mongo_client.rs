@@ -1,5 +1,5 @@
-use crate::state_services::err_set::ErrState;
-use crate::sys::init::AppConfig;
+
+use crate::idis::utils::err_set::ErrState;
 use mongodb::options::{ClientOptions, FindOneOptions, UpdateOptions};
 use mongodb::{
     bson::{self, doc, oid::ObjectId, Bson, Document},
@@ -13,9 +13,9 @@ pub struct MongoClient {
 }
 
 impl MongoClient {
-    pub async fn new(app_config: &AppConfig) -> Result<Self, ErrState> {
-        let db_addr = &app_config.mongoDB_addr;
-        let db_name = &app_config.mongoDB_name;
+    pub async fn new(db_addr: &str, db_name: &str) -> Result<Self, ErrState> {
+        let db_addr = db_addr;
+        let db_name = db_name;
 
         let client_options = ClientOptions::parse(db_addr)
             .await

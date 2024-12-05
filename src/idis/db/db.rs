@@ -30,30 +30,30 @@ impl DB {
          */
     }
 
-    pub async fn set(&self, r: &Ruid, d: &Ruid, feeld_qery: &Value, value: Value) -> Result<i64, ErrState>{
+    pub async fn set(&self, r: &Ruid, d: &Ruid, feeld_qery: &Value, value: Value) -> Result<Ruid, ErrState>{
         /*
         r: collection ID, 
         d: document ID, 
         feeld_qery: フィールドのクエリ(1以下) Nullの場合は新しいドキュメントを作成, 
         value: セットするjson
-        -> 成功した場合は1, 失敗した場合はErrorState
+        -> 成功した場合はそのドキュメントのRuid, 失敗した場合はErrorState
          */
     }
 
-    pub async fn del(&self, r: &Ruid, d: &Ruid, feeld_qerys: &Value) -> Result<i64, ErrState>{
+    pub async fn del(&self, r: &Ruid, d: &Ruid, feeld_qerys: &Value) -> Result<Ruid, ErrState>{
         /*
         r: collection ID, 
         d: document ID, 
         feeld_qery: フィールドのクエリ(1以上可能) Nullの場合はドキュメントを削除
-        -> 成功した場合は-1, 失敗した場合はErrorState
+        -> 成功した場合はそのドキュメントのRuid, 失敗した場合はErrorState
          */
     }
 
-    pub async fn del_many(&self, r: &Ruid, qery: &Value) -> Result<i64, ErrState>{
+    pub async fn del_many(&self, r: &Ruid, qery: &Value) -> Result<Vec<Ruid>, ErrState>{
         /*
         r: collection ID, 
         qery: クエリ
-        -> 成功した場合は-<削除数>, 失敗した場合はErrorState
+        -> 成功した場合は削除したドキュメントのRuidの配列, 失敗した場合はErrorState
          */
     }
 
@@ -61,6 +61,7 @@ impl DB {
         /*
         r: collection ID, 
         qery: クエリ
+        -> 成功した場合はそのドキュメントのRuid, 失敗した場合はErrorState
          */
     }
 
@@ -68,12 +69,14 @@ impl DB {
         /*
         r: collection ID, 
         qery: クエリ
+        -> 成功した場合はそのドキュメントのRuidの配列, 失敗した場合はErrorState
          */
     }
 
     pub async fn list(&self, r: &Ruid) -> Result<Vec<Ruid>, ErrState>{
         /*
         r: collection ID
+        -> そのコレクションの全てのドキュメントのRuidの配列
          */
     }
 }

@@ -15,30 +15,65 @@ pub struct DB {
 
 impl DB {
     pub async fn new(db_addr: &str, db_name: &str) -> Result<Self, ErrState> {
-
+        /*
+        DB のインスタンスを作成する
+        -> DB
+         */
     }
 
-    pub async fn get(&self, r: &Ruid, d: &Ruid, key: Option<Vec<&str>>) -> Result<Value, ErrState>{
-
+    pub async fn get(&self, r: &Ruid, d: &Ruid, feeld_qerys: &Value) -> Result<Value, ErrState>{
+        /*
+        r: collection ID, 
+        d: document ID, 
+        feeld_qery: フィールドのクエリ(1以上可能) Nullの場合は全てのフィールドを取得
+        -> json
+         */
     }
 
-    pub async fn set(&self, r: &Ruid, d: &Ruid, key: Option<Vec<&str>>, value: Value) -> Result<Value, ErrState>{
-
+    pub async fn set(&self, r: &Ruid, d: &Ruid, feeld_qery: &Value, value: Value) -> Result<i64, ErrState>{
+        /*
+        r: collection ID, 
+        d: document ID, 
+        feeld_qery: フィールドのクエリ(1以下) Nullの場合は新しいドキュメントを作成, 
+        value: セットするjson
+        -> 成功した場合は1, 失敗した場合はErrorState
+         */
     }
 
-    pub async fn del(&self, r: &Ruid, d: &Ruid, key: Option<Vec<&str>>) -> Result<Value, ErrState>{
+    pub async fn del(&self, r: &Ruid, d: &Ruid, feeld_qerys: &Value) -> Result<i64, ErrState>{
+        /*
+        r: collection ID, 
+        d: document ID, 
+        feeld_qery: フィールドのクエリ(1以上可能) Nullの場合はドキュメントを削除
+        -> 成功した場合は-1, 失敗した場合はErrorState
+         */
+    }
 
+    pub async fn del_many(&self, r: &Ruid, qery: &Value) -> Result<i64, ErrState>{
+        /*
+        r: collection ID, 
+        qery: クエリ
+        -> 成功した場合は-<削除数>, 失敗した場合はErrorState
+         */
     }
 
     pub async fn fnd_one(&self, r: &Ruid, qery: &Value) -> Result<Ruid, ErrState>{
-
+        /*
+        r: collection ID, 
+        qery: クエリ
+         */
     }
 
     pub async fn fnd_many(&self, r: &Ruid, qery: &Value) -> Result<Vec<Ruid>, ErrState>{
-
+        /*
+        r: collection ID, 
+        qery: クエリ
+         */
     }
 
     pub async fn list(&self, r: &Ruid) -> Result<Vec<Ruid>, ErrState>{
-
+        /*
+        r: collection ID
+         */
     }
 }

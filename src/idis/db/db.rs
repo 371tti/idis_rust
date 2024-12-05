@@ -1,3 +1,6 @@
+use std::fmt::Result;
+
+use ruid_set::ruid::Ruid;
 use serde_json::Value;
 
 use crate::idis::utils::err_set::ErrState;
@@ -12,30 +15,30 @@ pub struct DB {
 
 impl DB {
     pub async fn new(db_addr: &str, db_name: &str) -> Result<Self, ErrState> {
-        let instance = MongoClient::new(&db_addr, &db_name).await;
-        match instance {
-            Ok(instance) => Ok(
-                Self {
-                    instance,
-                    db_addr: db_addr.to_string(),
-                    db_name: db_name.to_string(),
-                }),
-            Err(err) => Err(err),
-        }
-    }
-
-    pub async fn get(&self, r: u128, d: u128, key: Option<Vec<&str>>) -> Result<Value, ErrState>{
 
     }
 
-    pub async fn set(&self, r: u128, d: u128, key: Option<Vec<&str>>, value: Value) -> Result<Value, ErrState>{
+    pub async fn get(&self, r: &Ruid, d: &Ruid, key: Option<Vec<&str>>) -> Result<Value, ErrState>{
 
     }
 
-    pub async fn del(&self, r: u128, d: u128, key: Option<Vec<&str>>) -> Result<Value, ErrState>{
+    pub async fn set(&self, r: &Ruid, d: &Ruid, key: Option<Vec<&str>>, value: Value) -> Result<Value, ErrState>{
 
     }
 
-    
-    
+    pub async fn del(&self, r: &Ruid, d: &Ruid, key: Option<Vec<&str>>) -> Result<Value, ErrState>{
+
+    }
+
+    pub async fn fnd_one(&self, r: &Ruid, qery: &Value) -> Result<Ruid, ErrState>{
+
+    }
+
+    pub async fn fnd_many(&self, r: &Ruid, qery: &Value) -> Result<Vec<Ruid>, ErrState>{
+
+    }
+
+    pub async fn list(&self, r: &Ruid) -> Result<Vec<Ruid>, ErrState>{
+
+    }
 }

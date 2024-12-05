@@ -24,16 +24,18 @@ impl DB {
         }
     }
 
-    pub async fn get(&self, r: u128, d: u128, key: Option<&str>) {
+    pub async fn get(&self, r: u128, d: u128, key: Option<Vec<&str>>) -> Result<Value, ErrState>{
 
     }
 
-    pub async fn set(&self, r: u128, d: u128, key: Option<&str>, value: Value) {
+    pub async fn set(&self, r: u128, d: u128, key: Option<Vec<&str>>, value: Value) -> Result<Value, ErrState>{
 
     }
 
-    pub async fn del(&self, r: u128, d: u128, key: Option<&str>) {
+    pub async fn del(&self, r: u128, d: u128, key: Option<Vec<&str>>) -> Result<Value, ErrState>{
 
     }
+
+    
     
 }

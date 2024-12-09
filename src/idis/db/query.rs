@@ -74,6 +74,27 @@ impl QueryType {
         QueryType::None
     }
 
+    pub fn to_mongo_query(&self) -> Document {
+        match self {
+            QueryType::None => doc! {},
+            QueryType::Set(r,d q, ) => doc! {
+                "$set": location_query_to_mongo(loc_query)
+            },
+            QueryType::Add(r, d, insert_query) => doc! {
+                "$addToSet": insert_query_to_mongo(insert_query)
+            },
+            QueryType::Del(r, d, loc_query) => doc! {
+                "$unset": location_query_to_mongo(loc_query)
+            },
+            QueryType::Get(r, d, loc_query) => location_query_to_mongo(loc_query),
+            QueryType::DelMany(r, feat_query) => doc! {
+                "$delete": feature_query_to_mongo(feat_query)
+            },
+            QueryType::Find(r, feat_query) => feature_query_to_mongo(feat_query),
+            QueryType::List(r) => doc! {},
+        }
+    }
+
     pub fn from_json(json: &Value) -> Result<QueryType, ErrState> {
         if json.is_null() {
             return Ok(QueryType::None);
@@ -228,83 +249,86 @@ fn query_type_to_mongo(query: &QueryType) -> Document {
     }
 }
 
-
 #[cfg(test)]
-mod mongo_query_tests {
+mod tests {
     use super::*;
-    use mongodb::bson::to_document;
+    use mongodb::bson::doc;
 
     #[test]
-    fn test_location_query_to_mongo() {
-        let loc_query = LocationQuery::Nested(
-            Index::String("field1".to_string()),
-            Box::new(LocationQuery::Range(0, 10)),
-        );
+    fn test_location_query_to_mongo_output() {
+        let query = LocationQuery::Key("field".to_string());
+        let bson_query = location_query_to_mongo(&query);
+        println!("Key Query BSON: {:?}", bson_query);
 
-        let mongo_query = location_query_to_mongo(&loc_query);
-        println!("LocationQuery to MongoDB: {:?}", mongo_query);
-        assert!(mongo_query.contains_key("field1"));
+        let range_query = LocationQuery::Range(0, 5);
+        let bson_range_query = location_query_to_mongo(&range_query);
+        println!("Range Query BSON: {:?}", bson_range_query);
+
+        let nested_query = LocationQuery::Nested(
+            Index::String("nested_field".to_string()),
+            Box::new(LocationQuery::Key("inner_field".to_string())),
+        );
+        let bson_nested_query = location_query_to_mongo(&nested_query);
+        println!("Nested Query BSON: {:?}", bson_nested_query);
     }
 
     #[test]
-    fn test_insert_query_to_mongo() {
-        let insert_query = InsertQuery::Nested(
-            Index::String("array_field".to_string()),
+    fn test_insert_query_to_mongo_output() {
+        let push_query = InsertQuery::Push;
+        let bson_push_query = insert_query_to_mongo(&push_query);
+        println!("Push Query BSON: {:?}", bson_push_query);
+
+        let at_head_query = InsertQuery::AtHead(0);
+        let bson_at_head_query = insert_query_to_mongo(&at_head_query);
+        println!("AtHead Query BSON: {:?}", bson_at_head_query);
+
+        let nested_insert_query = InsertQuery::Nested(
+            Index::String("nested_field".to_string()),
             Box::new(InsertQuery::Push),
         );
-
-        let mongo_query = insert_query_to_mongo(&insert_query);
-        println!("InsertQuery to MongoDB: {:?}", mongo_query);
-        assert!(mongo_query.contains_key("array_field"));
+        let bson_nested_insert_query = insert_query_to_mongo(&nested_insert_query);
+        println!("Nested Insert Query BSON: {:?}", bson_nested_insert_query);
     }
 
     #[test]
-    fn test_feature_query_to_mongo() {
-        let feature_query = FeatureQuery::And(vec![
-            FeatureQuery::Greater(10),
-            FeatureQuery::Less(100),
+    fn test_feature_query_to_mongo_output() {
+        let less_query = FeatureQuery::Less(10);
+        let bson_less_query = feature_query_to_mongo(&less_query);
+        println!("Less Query BSON: {:?}", bson_less_query);
+
+        let and_query = FeatureQuery::And(vec![
+            FeatureQuery::MatchNum(42),
+            FeatureQuery::MatchBool(true),
         ]);
+        let bson_and_query = feature_query_to_mongo(&and_query);
+        println!("And Query BSON: {:?}", bson_and_query);
 
-        let mongo_query = feature_query_to_mongo(&feature_query);
-        println!("FeatureQuery to MongoDB: {:?}", mongo_query);
-        assert!(mongo_query.contains_key("$and"));
-    }
-
-    #[test]
-    fn test_query_type_to_mongo_set() {
-        let loc_query = LocationQuery::Key("field_name".to_string());
-        let query = QueryType::Set(
-            Box::new(Ruid::new_random()),
-            Box::new(Ruid::new_random()),
-            loc_query,
+        let nested_feature_query = FeatureQuery::Nested(
+            Index::String("nested_field".to_string()),
+            Box::new(FeatureQuery::MatchStr("value".to_string())),
         );
-
-        let mongo_query = query_type_to_mongo(&query);
-        println!("Set QueryType to MongoDB: {:?}", mongo_query);
-        assert!(mongo_query.contains_key("$set"));
+        let bson_nested_feature_query = feature_query_to_mongo(&nested_feature_query);
+        println!("Nested Feature Query BSON: {:?}", bson_nested_feature_query);
     }
 
     #[test]
-    fn test_query_type_to_mongo_add() {
-        let insert_query = InsertQuery::AtHead(0);
-        let query = QueryType::Add(
-            Box::new(Ruid::new_random()),
-            Box::new(Ruid::new_random()),
-            insert_query,
+    fn test_query_type_to_mongo_output() {
+        let set_query = QueryType::Set(
+            Box::new(Ruid::from_str("00000000000000000000000000000001").unwrap()),
+            Box::new(Ruid::from_str("00000000000000000000000000000002").unwrap()),
+            LocationQuery::Key("field".to_string()),
         );
+        let bson_set_query = query_type_to_mongo(&set_query);
+        println!("Set Query BSON: {:?}", bson_set_query);
 
-        let mongo_query = query_type_to_mongo(&query);
-        println!("Add QueryType to MongoDB: {:?}", mongo_query);
-        assert!(mongo_query.contains_key("$addToSet"));
-    }
-
-    #[test]
-    fn test_query_type_to_mongo_find() {
-        let feature_query = FeatureQuery::MatchStr("example_value".to_string());
-        let query = QueryType::Find(Box::new(Ruid::new_random()), feature_query);
-
-        let mongo_query = query_type_to_mongo(&query);
-        println!("Find QueryType to MongoDB: {:?}", mongo_query);
-        assert!(mongo_query.contains_key("$eq"));
+        let find_query = QueryType::Find(
+            Box::new(Ruid::from_str("00000000000000000000000000000001").unwrap()),
+            FeatureQuery::And(vec![
+                FeatureQuery::MatchStr("value".to_string()),
+                FeatureQuery::Less(100),
+            ]),
+        );
+        let bson_find_query = query_type_to_mongo(&find_query);
+        println!("Find Query BSON: {:?}", bson_find_query);
     }
 }

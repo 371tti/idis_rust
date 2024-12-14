@@ -1,12 +1,10 @@
 use rand::RngCore;
-use rand::Rng;
 use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 use chrono::Utc;
 
-use crate::prefix::Prefix;
+use crate::prefix::prefix;
 
-use std::str::FromStr;
 use std::fmt;
 
 #[derive(Debug, Clone)]
@@ -80,7 +78,7 @@ impl RuidGenerator {
         let rng = ChaCha20Rng::from_entropy();
         Self {
             default_device_id: 0x0000,
-            prefix: Prefix::UncategorizedData,
+            prefix: prefix::UNCATEGORIZED_DATA,
             device_id: 0x0000,
             rng,
         }
@@ -117,7 +115,7 @@ impl RuidGenerator {
         let id = Self::generator(prefix, device_id, timestamp, rand);
 
         // オプションの値をリセット
-        self.prefix = Prefix::UncategorizedData;
+        self.prefix = prefix::UNCATEGORIZED_DATA;
         self.device_id = self.default_device_id;
 
         Ruid { id }

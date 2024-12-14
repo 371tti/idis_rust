@@ -2,14 +2,15 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use serde_json::{Value};
 use ruid_set::ruid::Ruid;
-use crate::idis::utils::err_set::{ErrState, ErrMsg};
 use mongodb::{options::ClientOptions, Client};
 use mongodb::bson::{self, doc, Bson, Document};
 
 use std::str::FromStr;
 
+use crate::utils::err_set::{ErrMsg, ErrState};
+
 use super::db_trait::Database;
-use super::query::{self, FeatureQuery, InsertQuery, LocationQuery, QueryType};
+use super::query::{self, FeatureQuery, Index, InsertQuery, LocationQuery, QueryType};
 
 pub struct MongoDB {
     instance: mongodb::Database,
@@ -271,21 +272,20 @@ async fn set(&self, r: &Ruid, d: &Ruid, feeld_qery: &Value, value: &Value) -> Re
 }
 
 impl MongoDB {
-    pub fn to_mongo_query(query: &QueryType) -> bson::Document {
-        match query {
-            QueryType::None => doc! {},
-            QueryType::Set(r, d, loc_query) => Self::set_query_builder(loc_query),
-            QueryType::Add(r, d, insert_query) => Self::add_query_builder(insert_query),
-            QueryType::Del(r, d, loc_query) => Self::del_query_builder(loc_query),
-            QueryType::Get(r, d, loc_query) => Self::get_query_builder(loc_query),
-            QueryType::DelMany(r, feat_query) => Self::del_many_query_builder(feat_query),
-            QueryType::Find(r, feat_query) => Self::find_query_builder(feat_query),
-            QueryType::List(r) => Self::list_query_builder(r),
-        }
-        }
-    }
+    // pub fn to_mongo_query(query: &QueryType) -> bson::Document {
+    //     match query {
+    //         QueryType::None => doc! {},
+    //         QueryType::Set(r, d, loc_query) => Self::set_query_builder(loc_query),
+    //         QueryType::Add(r, d, insert_query) => Self::add_query_builder(insert_query),
+    //         QueryType::Del(r, d, loc_query) => Self::del_query_builder(loc_query),
+    //         QueryType::Get(r, d, loc_query) => Self::get_query_builder(loc_query),
+    //         QueryType::DelMany(r, feat_query) => Self::del_many_query_builder(feat_query),
+    //         QueryType::Find(r, feat_query) => Self::find_query_builder(feat_query),
+    //         QueryType::List(r) => Self::list_query_builder(r),
+    //     }
+    // }
 
-    fn set_query_builder(q: &LocationQuery) -> bson::Document {
+    fn set_query_builder(collection_id: &Ruid, docment_id: &Ruid, q: &LocationQuery, set_docment: bson::Document) -> bson::Document {
         let mut query = q.clone();
 
         while  {
@@ -293,37 +293,142 @@ impl MongoDB {
         }
     }
 
-    fn add_query_builder(q: &InsertQuery) -> bson::Document {
+    // fn add_query_builder(q: &InsertQuery) -> bson::Document {
 
-    }
+    // }
 
-    fn del_query_builder(q: &LocationQuery) -> bson::Document {
+    // fn del_query_builder(q: &LocationQuery) -> bson::Document {
 
-    }
+    // }
 
-    fn get_query_builder(q: &LocationQuery) -> bson::Document {
+    // fn get_query_builder(q: &LocationQuery) -> bson::Document {
 
-    }
+    // }
 
-    fn del_many_query_builder(q: &FeatureQuery) -> bson::Document {
+    // fn del_many_query_builder(q: &FeatureQuery) -> bson::Document {
 
-    }
+    // }
 
-    fn find_query_builder(q: &FeatureQuery) -> bson::Document {
-
-    }
-
-    fn list_query_builder(q: &Ruid) -> bson::Document {
-
-    }
-
+    fn feature_query_to_mongo_while(query: &FeatureQuery) -> Document {
+        // スタック構造を準備 (現在のクエリと出力用の文書を保持)
+        let mut stack = Vec::new();
+        
+        let mut final_doc = Document::new();
     
-
-    db.collection_name.updateOne(
-        { "name": "Alice" },            // フィルタ条件
-        { "$set": { "age": 26 } },      // 更新内容
-        { upsert: true }                // ドキュメントがなければ作成
-    );
+        while let Some((parent_field, current_query, mut current_doc)) = stack.pop() {
+            match current_query {
+                FeatureQuery::Any => {
+                    current_doc = Some(doc! {});
+                }
+                FeatureQuery::None => {
+                    current_doc = Some(doc! {});
+                }
+                // 数値比較クエリ
+                FeatureQuery::Less(value) => {
+                    let condition = doc! { "$lte": value };
+                    current_doc = Some(condition);
+                }
+                FeatureQuery::Greater(value) => {
+                    let condition = doc! { "$gte": value };
+                    current_doc = Some(condition);
+                }
+                FeatureQuery::MatchNum(value) => {
+                    let condition = doc! { "$eq": value };
+                    current_doc = Some(condition);
+                }
     
+                // 文字列マッチクエリ
+                FeatureQuery::MatchStr(value) => {
+                    let condition = doc! { "$eq": value };
+                    current_doc = Some(condition);
+                }
+    
+                // 真偽値の一致
+                FeatureQuery::MatchBool(value) => {
+                    let condition = doc! { "$eq": value };
+                    current_doc = Some(condition);
+                }
+    
+                // 範囲条件 (start <= value <= end)
+                FeatureQuery::Range(start, end, nested) => {
+                    let range_doc = doc! {
+                        "$gte": start,
+                        "$lte": end
+                    };
+                    if let Some(doc) = current_doc {
+                        stack.push((parent_field.clone(), nested, Some(doc)));
+                    } else {
+                        current_doc = Some(range_doc);
+                        stack.push((parent_field.clone(), nested, None));
+                    }
+                }
+    
+                // リスト内の特定インデックス
+                FeatureQuery::Index(index, nested) => {
+                    let field = format!("array.{}", index);
+                    stack.push((Some(field), nested, None));
+                }
+                FeatureQuery::IndexBack(index, nested) => {
+                    let field = format!("array.-{}", index);
+                    stack.push((Some(field), nested, None));
+                }
+    
+                // ネストされたフィールド
+                FeatureQuery::Nested(index, nested) => {
+                    let field = match index {
+                        Index::Number(num) => num.to_string(),
+                        Index::String(field) => field.clone(),
+                    };
+                    stack.push((Some(field), nested, None));
+                }
+    
+                // 論理演算: AND
+                FeatureQuery::And(queries) => {
+                    let mut conditions = vec![];
+                    for subquery in queries.iter().rev() {
+                        stack.push((None, subquery, None));
+                    }
+                    if let Some(doc) = current_doc {
+                        conditions.push(doc);
+                    }
+                    current_doc = Some(doc! { "$and": conditions });
+                }
+    
+                // 論理演算: OR
+                FeatureQuery::Or(queries) => {
+                    let mut conditions = vec![];
+                    for subquery in queries.iter().rev() {
+                        stack.push((None, subquery, None));
+                    }
+                    if let Some(doc) = current_doc {
+                        conditions.push(doc);
+                    }
+                    current_doc = Some(doc! { "$or": conditions });
+                }
+    
+                // 論理演算: NOT
+                FeatureQuery::Not(subquery) => {
+                    stack.push((None, subquery, None));
+                    if let Some(doc) = current_doc {
+                        current_doc = Some(doc! { "$not": doc });
+                    }
+                }
+            }
+    
+            // 結果を親のフィールドにマージ
+            if let Some(doc) = current_doc {
+                if let Some(field) = parent_field {
+                    final_doc.insert(field, doc);
+                } else {
+                    final_doc.extend(doc);
+                }
+            }
+        }
+    
+        final_doc
+    }
+    // fn list_query_builder(q: &Ruid) -> bson::Document {
+
+    // }
 
 }

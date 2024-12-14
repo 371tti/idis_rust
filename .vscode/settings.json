@@ -1,6 +1,8 @@
 {
     "cSpell.words": [
-        "actix"
+        "actix",
+        "chrono",
+        "Uncategorized"
     ],
         "rust-analyzer.cargo.autoreload": true,
         "rust-analyzer.checkOnSave.enable": true,

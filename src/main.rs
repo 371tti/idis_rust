@@ -1,53 +1,49 @@
-// /*
-// IDIS RUST version
-// author 371tti
+use std::io::Error;
+use std::sync::Arc;
 
-// */
-mod idis;
+use config::{Configuration};
+use server::server_trait::WkServer;
+use share::collection::{self, Collection};
+use tokio;
+use env_logger::Env;
 
-// use actix_web::{dev, http};
-// use actix_web::middleware::ErrorHandlerResponse;
-// use actix_web::{get, web, App, HttpServer, Responder, middleware::Logger, HttpResponse, HttpRequest};
-// use env_logger::Env;
-// use log::info;
+use log::{error, info};
 
-// // #[actix_web::route("/{tail:.*}", method = "GET", method = "POST", method = "PUT", method = "DELETE", method = "PATCH")]
-// // async fn catch_all(app_set: web::Data<AppSet>, req: HttpRequest, body_stream: web::Payload) -> HttpResponse {
+mod idis_server;
+mod config;
+mod share;
+mod actix_middleware;
+mod utils;
+mod server;
 
-// //     let processor = Processor::new(app_set, body_stream, req);
+async fn server_start(config: Configuration, collection: Arc<Collection>) -> Result<(), Error> {
+    let idis_server = idis_server::actix_server::IndexServer::new(config.idis_server, Arc::clone(&collection)).run_with_restart();
+    // 追加していくの
 
-// //     processor.run().await
-// // }
+    let result = tokio::join!(
+        idis_server
+    );
+
+    match result {
+        (Ok(_),) => {
+            info!("All servers have stopped.");
+            Ok(())
+        }
+        (Err(e),) => {
+            error!("An error occurred: {}", e);
+            Err(e)
+        }
+    }
+}
 
 
-// #[actix_web::main]
-// async fn main() -> std::io::Result<()> {
-//     // ロガーの初期化
-//     env_logger::init_from_env(Env::default().default_filter_or("debug"));
 
-//     info!("IDIS RUST version");    
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    let config = config::Configuration::loader("config.yaml");
+    let collection = collection::Collection::new(config.clone());
 
-//     // サーバーの設定
-//     let server = HttpServer::new(move || {
-//         App::new()
-//            //  .wrap(actix_web::middleware::ErrorHandlers::new().default_handler(handle_error))
-//             .app_data(web::PayloadConfig::new(app_config.payload_max_size.clone())) // 最大バッファサイズを16KBに設定
-//             .wrap(Logger::default())  // リクエストのログを記録するミドルウェアを追加
-//             .app_data(app_set.clone()) // アプリケーション全体で共有
-//             .service(catch_all)           // ルーティングのサービスを追加
-//     })
-//     .bind(app_config.server_bind.clone())?
-//     .workers(app_config.server_workers.clone())
-//     .backlog(app_config.server_backlog.clone())
-//     .server_hostname(app_config.server_name_host.clone())
-//     .run();
-
-//     // サーバーをバックグラウンドで実行し、その終了を待機
-//     server.await?;
-
-//     Ok(())
-// }
-
-fn main() {
-    println!("Hello, world!");
+    server_start(config, collection).await?;
+    Ok(())
 }

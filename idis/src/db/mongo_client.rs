@@ -3,7 +3,7 @@ use futures::StreamExt;
 use serde_json::{Value};
 use ruid_set::ruid::Ruid;
 use mongodb::{options::ClientOptions, Client};
-use mongodb::bson::{self, doc, Bson, Document};
+use mongodb::bson::{self, bson, doc, Bson, Document};
 
 use std::str::FromStr;
 
@@ -308,127 +308,82 @@ impl MongoDB {
     // fn del_many_query_builder(q: &FeatureQuery) -> bson::Document {
 
     // }
-
     fn feature_query_to_mongo_while(query: &FeatureQuery) -> Document {
-        // スタック構造を準備 (現在のクエリと出力用の文書を保持)
-        let mut stack = Vec::new();
-        
-        let mut final_doc = Document::new();
-    
-        while let Some((parent_field, current_query, mut current_doc)) = stack.pop() {
-            match current_query {
-                FeatureQuery::Any => {
-                    current_doc = Some(doc! {});
-                }
-                FeatureQuery::None => {
-                    current_doc = Some(doc! {});
-                }
-                // 数値比較クエリ
-                FeatureQuery::Less(value) => {
-                    let condition = doc! { "$lte": value };
-                    current_doc = Some(condition);
-                }
-                FeatureQuery::Greater(value) => {
-                    let condition = doc! { "$gte": value };
-                    current_doc = Some(condition);
-                }
-                FeatureQuery::MatchNum(value) => {
-                    let condition = doc! { "$eq": value };
-                    current_doc = Some(condition);
-                }
-    
-                // 文字列マッチクエリ
-                FeatureQuery::MatchStr(value) => {
-                    let condition = doc! { "$eq": value };
-                    current_doc = Some(condition);
-                }
-    
-                // 真偽値の一致
-                FeatureQuery::MatchBool(value) => {
-                    let condition = doc! { "$eq": value };
-                    current_doc = Some(condition);
-                }
-    
-                // 範囲条件 (start <= value <= end)
-                FeatureQuery::Range(start, end, nested) => {
-                    let range_doc = doc! {
-                        "$gte": start,
-                        "$lte": end
-                    };
-                    if let Some(doc) = current_doc {
-                        stack.push((parent_field.clone(), nested, Some(doc)));
-                    } else {
-                        current_doc = Some(range_doc);
-                        stack.push((parent_field.clone(), nested, None));
-                    }
-                }
-    
-                // リスト内の特定インデックス
-                FeatureQuery::Index(index, nested) => {
-                    let field = format!("array.{}", index);
-                    stack.push((Some(field), nested, None));
-                }
-                FeatureQuery::IndexBack(index, nested) => {
-                    let field = format!("array.-{}", index);
-                    stack.push((Some(field), nested, None));
-                }
-    
-                // ネストされたフィールド
-                FeatureQuery::Nested(index, nested) => {
-                    let field = match index {
-                        Index::Number(num) => num.to_string(),
-                        Index::String(field) => field.clone(),
-                    };
-                    stack.push((Some(field), nested, None));
-                }
-    
-                // 論理演算: AND
-                FeatureQuery::And(queries) => {
-                    let mut conditions = vec![];
-                    for subquery in queries.iter().rev() {
-                        stack.push((None, subquery, None));
-                    }
-                    if let Some(doc) = current_doc {
-                        conditions.push(doc);
-                    }
-                    current_doc = Some(doc! { "$and": conditions });
-                }
-    
-                // 論理演算: OR
-                FeatureQuery::Or(queries) => {
-                    let mut conditions = vec![];
-                    for subquery in queries.iter().rev() {
-                        stack.push((None, subquery, None));
-                    }
-                    if let Some(doc) = current_doc {
-                        conditions.push(doc);
-                    }
-                    current_doc = Some(doc! { "$or": conditions });
-                }
-    
-                // 論理演算: NOT
-                FeatureQuery::Not(subquery) => {
-                    stack.push((None, subquery, None));
-                    if let Some(doc) = current_doc {
-                        current_doc = Some(doc! { "$not": doc });
-                    }
-                }
-            }
-    
-            // 結果を親のフィールドにマージ
-            if let Some(doc) = current_doc {
-                if let Some(field) = parent_field {
-                    final_doc.insert(field, doc);
-                } else {
-                    final_doc.extend(doc);
-                }
-            }
+        enum Type {
+            None,
+            And,
+            Or,
         }
-    
-        final_doc
-    }
-    // fn list_query_builder(q: &Ruid) -> bson::Document {
+        // スタック構造を準備 (現在のクエリと出力用の文書を保持)
+        let mut stack_2d: Vec<(Vec<(Bson, Option<FeatureQuery>)>, Type, usize)> = Vec::new();
+        let mut compleat_doc: Option<Document> = None;
+        
+        stack_2d.push((
+            vec![(bson!({}), Some((*query)))],
+            Type::None,
+            0,
+        ));
 
-    // }
+        while let Some(stack) = stack_2d.pop() {
+            match stack.1 {
+                Type::And => {
+                    let mut now_index = stack.2;
+                    // 直前の完成したクエリ（compleat_doc）を現在のスタックにマージ
+                    if let Some(cdoc) = compleat_doc {
+                        let marge_doc = stack.0.get_mut(now_index).unwrap().0;
+                        marge_doc = cdoc;
+                        now_index += 1;
+                    }
+                    // 次のクエリが存在する場合は、新しいスタックを作成して処理を続ける
+                    if let Some(cqp) = stack.0.get(now_index) {
+                        let mut cvec: (Vec<(Bson, Option<FeatureQuery>)>, Type, usize) = (vec![(bson!(None), cqp.1)], Type::None, 0);
+                        stack_2d.push(stack);
+                        stack_2d.push(cvec);
+                    } else {
+                        // すべてのクエリが処理済みの場合、$and ドキュメントを作成
+                        let mut and_doc = Document::new();
+                        let mut and_array = Vec::new();
+                        for (bson_doc, _) in stack.0 {
+                            if let Bson::Document(doc) = bson_doc {
+                                and_array.push(Bson::Document(doc));
+                            }
+                        }
+                        and_doc.insert("$and", Bson::Array(and_array));
+                        compleat_doc = Some(and_doc);
+                    }
+
+                },
+                Type::Or => todo!(),
+                Type::None => {
+                    match q {
+                        FeatureQuery::Any => todo!(),
+                        FeatureQuery::None => todo!(),
+                        FeatureQuery::Less(_) => todo!(),
+                        FeatureQuery::Greater(_) => todo!(),
+                        FeatureQuery::MatchNum(_) => todo!(),
+                        FeatureQuery::MatchStr(_) => todo!(),
+                        FeatureQuery::MatchBool(_) => todo!(),
+                        FeatureQuery::Range(_, _, feature_query) => todo!(),
+                        FeatureQuery::Index(_, feature_query) => todo!(),
+                        FeatureQuery::IndexBack(_, feature_query) => todo!(),
+                        FeatureQuery::Nested(index, feature_query) => todo!(),
+                        FeatureQuery::And(vec) => {
+                            let mut c_vec: Vec<(Bson, Option<FeatureQuery>)> = Vec::new();
+                            for q in vec {
+                                c_vec.push((bson!({}), Some(q)));
+                            }
+                            stack_2d.push(c_vec);
+                        },
+                        FeatureQuery::Or(vec) => todo!(),
+                        FeatureQuery::Not(feature_query) => todo!(),
+                    }
+                },
+            }
+
+            
+
+        }
+
+
 
 }

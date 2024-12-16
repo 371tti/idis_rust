@@ -1,18 +1,13 @@
 [package]
-name = "idis-system"
+name = "idis"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-actix-web = "4"
-actix = "0.13"
-actix-rt = "2"
-actix-web-actors = "4.0"
 futures-util = "0.3.31"
-tera = "1.14.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
-futures = "0.3.30"
+serde_with = "1.14"
 serde_json = "1.0.125"
 tokio = { version = "1.39.3", features = ["full"] }
 env_logger = "0.11.5"
@@ -29,9 +24,8 @@ base64 = "0.21.7"
 woothee = "0.13.0"
 num = "0.4"
 num-traits = "0.2"
-serde_with = "1.14"
 flurry = "0.5.2"
 async-trait = "0.1"
+futures = "0.3.30"
 
-ruid-set = { path = "./ruid" }
-idis = { path = "./idis"}
+ruid-set = { path = "./../ruid" }

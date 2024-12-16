@@ -1,11 +1,15 @@
 {
     "cSpell.words": [
-        "actix"
+        "actix",
+        "bson",
+        "chrono",
+        "Uncategorized"
     ],
         "rust-analyzer.cargo.autoreload": true,
         "rust-analyzer.checkOnSave.enable": true,
         "rust-analyzer.inlayHints.enable": true,
         "rust-analyzer.lens.enable": true,
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "liveServer.settings.port": 80
     
 }

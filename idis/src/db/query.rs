@@ -61,7 +61,7 @@ pub enum FeatureQuery {
     // 論理操作
     And(Vec<FeatureQuery>),          // AND条件 (object, list)
     Or(Vec<FeatureQuery>),           // OR条件 (object, list)
-    Not(Box<FeatureQuery>),          // NOT条件 (object, list)
+    Not(Vec<FeatureQuery>),          // NOT条件 (object, list)
 }
 
 /// 操作の種類

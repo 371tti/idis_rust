@@ -285,13 +285,13 @@ impl MongoDB {
     //     }
     // }
 
-    fn set_query_builder(collection_id: &Ruid, docment_id: &Ruid, q: &LocationQuery, set_docment: bson::Document) -> bson::Document {
-        let mut query = q.clone();
+    // fn set_query_builder(collection_id: &Ruid, docment_id: &Ruid, q: &LocationQuery, set_docment: bson::Document) -> bson::Document {
+    //     let mut query = q.clone();
 
-        while  {
+    //     while  {
             
-        }
-    }
+    //     }
+    // }
 
     // fn add_query_builder(q: &InsertQuery) -> bson::Document {
 
@@ -312,6 +312,7 @@ impl MongoDB {
         enum Type {
             None,
             And,
+            Not,
             Or,
         }
         // スタック構造を準備 (現在のクエリと出力用の文書を保持)
@@ -331,7 +332,7 @@ impl MongoDB {
                     // 直前の完成したクエリ（compleat_doc）を現在のスタックにマージ
                     if let Some(cdoc) = compleat_doc {
                         let marge_doc = stack.0.get_mut(now_index).unwrap().0;
-                        marge_doc = cdoc;
+                        marge_doc = Bson::Document(cdoc);
                         now_index += 1;
                     }
                     // 次のクエリが存在する場合は、新しいスタックを作成して処理を続ける
@@ -353,7 +354,58 @@ impl MongoDB {
                     }
 
                 },
-                Type::Or => todo!(),
+                Type::Or => {
+                    let mut now_index = stack.2;
+                    // 直前の完成したクエリ（compleat_doc）を現在のスタックにマージ
+                    if let Some(cdoc) = compleat_doc {
+                        let marge_doc = stack.0.get_mut(now_index).unwrap().0;
+                        marge_doc = Bson::Document(cdoc);
+                        now_index += 1;
+                    }
+                    // 次のクエリが存在する場合は、新しいスタックを作成して処理を続ける
+                    if let Some(cqp) = stack.0.get(now_index) {
+                        let mut cvec: (Vec<(Bson, Option<FeatureQuery>)>, Type, usize) = (vec![(bson!(None), cqp.1)], Type::None, 0);
+                        stack_2d.push(stack);
+                        stack_2d.push(cvec);
+                    } else {
+                        // すべてのクエリが処理済みの場合、$or ドキュメントを作成
+                        let mut or_doc = Document::new();
+                        let mut or_array = Vec::new();
+                        for (bson_doc, _) in stack.0 {
+                            if let Bson::Document(doc) = bson_doc {
+                                or_array.push(Bson::Document(doc));
+                            }
+                        }
+                        or_doc.insert("$or", Bson::Array(or_array));
+                        compleat_doc = Some(or_doc);
+                    }
+                },
+                Type::Not => {
+                    let mut now_index = stack.2;
+                    // 直前の完成したクエリ（compleat_doc）を現在のスタックにマージ
+                    if let Some(cdoc) = compleat_doc {
+                        let marge_doc = stack.0.get_mut(now_index).unwrap().0;
+                        marge_doc = Bson::Document(cdoc);
+                        now_index += 1;
+                    }
+                    // 次のクエリが存在する場合は、新しいスタックを作成して処理を続ける
+                    if let Some(cqp) = stack.0.get(now_index) {
+                        let mut cvec: (Vec<(Bson, Option<FeatureQuery>)>, Type, usize) = (vec![(bson!(None), cqp.1)], Type::None, 0);
+                        stack_2d.push(stack);
+                        stack_2d.push(cvec);
+                    } else {
+                        // すべてのクエリが処理済みの場合、$not ドキュメントを作成
+                        let mut not_doc = Document::new();
+                        let mut not_array = Vec::new();
+                        for (bson_doc, _) in stack.0 {
+                            if let Bson::Document(doc) = bson_doc {
+                                not_array.push(Bson::Document(doc));
+                            }
+                        }
+                        not_doc.insert("$not", Bson::Array(not_array));
+                        compleat_doc = Some(not_doc);
+                    }
+                },
                 Type::None => {
                     match q {
                         FeatureQuery::Any => todo!(),
@@ -372,18 +424,30 @@ impl MongoDB {
                             for q in vec {
                                 c_vec.push((bson!({}), Some(q)));
                             }
-                            stack_2d.push(c_vec);
+                            stack_2d.push((c_vec, Type::And, vec.len()));
                         },
-                        FeatureQuery::Or(vec) => todo!(),
-                        FeatureQuery::Not(feature_query) => todo!(),
+                        FeatureQuery::Or(vec) => {
+                            let mut c_vec: Vec<(Bson, Option<FeatureQuery>)> = Vec::new();
+                            for q in vec {
+                                c_vec.push((bson!({}), Some(q)));
+                            }
+                            stack_2d.push((c_vec, Type::Or, vec.len()));
+                        },
+                        FeatureQuery::Not(vec) => {
+                            let mut c_vec: Vec<(Bson, Option<FeatureQuery>)> = Vec::new();
+                            for q in vec {
+                                c_vec.push((bson!({}), Some(q)));
+                            }
+                            stack_2d.push((c_vec, Type::Not, vec.len()));
+                        },
                     }
                 },
             }
 
-            
-
         }
 
-
+        compleat_doc.unwrap_or(Document::new())
+    }
 
 }
+

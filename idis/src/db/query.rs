@@ -5,10 +5,9 @@ use ruid_set::ruid::Ruid;
 use serde::de::value;
 use serde_json::{Map, Value};
 
-use crate::idis::utils::err_set::{ErrState, ErrMsg::ERROR};
 
 /// Indexの種類
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Index {
     Number(i32),
     String(String),
@@ -44,7 +43,7 @@ pub enum InsertQuery {
 }
 
 /// データの特徴を指定するクエリ
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FeatureQuery {
     Any,                            // なにかデータがあるとき
     None,                           // データがないとき

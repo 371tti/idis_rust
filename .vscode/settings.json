@@ -3,7 +3,9 @@
         "actix",
         "bson",
         "chrono",
-        "Uncategorized"
+        "idis",
+        "Uncategorized",
+        "vectorizer"
     ],
         "rust-analyzer.cargo.autoreload": true,
         "rust-analyzer.checkOnSave.enable": true,

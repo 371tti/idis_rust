@@ -28,4 +28,4 @@ flurry = "0.5.2"
 async-trait = "0.1"
 futures = "0.3.30"
 
-ruid-set = { path = "./../ruid" }
+ruid-set = { path = "../ruid" }

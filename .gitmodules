@@ -1,0 +1,9 @@
+[submodule "tf-idf-vectorizer"]
+	path = tf-idf-vectorizer
+	url = https://github.com/371tti/tf-idf-vectorizer
+[submodule "idis"]
+	path = idis
+	url = https://github.com/371tti/idis
+[submodule "ruid"]
+	path = ruid
+	url = https://github.com/371tti/ruid

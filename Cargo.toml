@@ -35,3 +35,4 @@ async-trait = "0.1"
 
 ruid-set = { path = "./ruid" }
 idis = { path = "./idis"}
+tf-idf-vectorizer = { path = "./tf-idf-vectorizer" }

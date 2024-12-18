@@ -1,4 +1,4 @@
 /target
-/idis/target
-/ruid/target
-/tf-idf-vectorizer/target
+/idis
+/ruid
+/tf-idf-vectorizer

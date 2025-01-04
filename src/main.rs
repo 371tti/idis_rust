@@ -1,7 +1,7 @@
 use std::io::Error;
 use std::sync::Arc;
 
-use config::{Configuration};
+use config::Configuration;
 use server::server_trait::WkServer;
 use share::collection::{self, Collection};
 use tokio;
@@ -17,6 +17,9 @@ mod utils;
 mod server;
 
 async fn server_start(config: Configuration, collection: Arc<Collection>) -> Result<(), Error> {
+    std::env::set_var("RUST_LOG", config.logger_mode);
+    env_logger::init();
+
     let idis_server = idis_server::actix_server::IndexServer::new(config.idis_server, Arc::clone(&collection)).run_with_restart();
     // 追加していくの
 

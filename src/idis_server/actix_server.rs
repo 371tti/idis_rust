@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use actix_web::{dev::Server, middleware::{self, Logger}, web, App, HttpServer};
+use actix_web::{dev::Server, middleware::{self}, web, App, HttpServer};
+use log::error;
 
-use log::{error, info};
 
-use crate::{actix_middleware::status_page, config::ServerConfig, server::server_trait::WkServer, share::{self, collection::Collection}, utils};
+use crate::{actix_middleware::status_page, config::ServerConfig, server::server_trait::WkServer, share::collection::Collection, utils};
 
 use super::actix_server_config::ServiceConfig;
-use idis;
 
 pub struct IndexServer {
     pub config: ServerConfig<ServiceConfig>,
@@ -56,7 +55,6 @@ impl WkServer<ServiceConfig> for IndexServer {
     }
 
     fn failed_report(&mut self, e: std::io::Error, failure_count: u32, start_time: tokio::time::Instant) {
-        
-    }
-    
+        error!("{} failed to start. Error: {}. Failure count: {}. Elapsed time: {:?}", self.server_name(), e, failure_count, start_time.elapsed());
+    }  
 }

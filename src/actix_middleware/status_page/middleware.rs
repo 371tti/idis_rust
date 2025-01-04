@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, io::{Error, ErrorKind}, sync::Arc};
+use std::{collections::HashMap, io::{Error, ErrorKind}, sync::Arc};
 use actix_web::{body::BoxBody, dev::ServiceResponse, middleware::ErrorHandlerResponse, web, HttpResponse};
 use chrono::Utc;
 use log::{error, info};
@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::{self};
 use tera::{Context, Tera};
 
-use crate::{config::Configuration, share::collection::{self, Collection}, utils};
+use crate::{config::Configuration, share::collection::Collection, utils};
 
 #[derive(Clone, Deserialize)]
 pub struct StatusMes {

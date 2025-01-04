@@ -1,6 +1,3 @@
-use std::{fs, path::PathBuf};
-
-use actix_web::middleware::Logger;
 use serde::Deserialize;
 use log::{error, info};
 
@@ -22,7 +19,6 @@ pub struct ServerConfig<ServiceConfig> {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Configuration {
     pub idis_server: ServerConfig<idis_server::actix_server_config::ServiceConfig>,
-    pub path: String,
     pub logger_mode: String,
     pub middleware_config: MiddlewareConfig,
 }

@@ -24,7 +24,7 @@ pub trait WkServer<ServiceConfig>: Sized {
 
         loop {
             let start_time = Instant::now();
-            let mut e = std::io::Error::new(std::io::ErrorKind::Other, "Unknown error");
+            let e = std::io::Error::new(std::io::ErrorKind::Other, "Unknown error");
 
             match self.create_server() {
                 Ok(server) => {

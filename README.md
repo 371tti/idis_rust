@@ -104,7 +104,7 @@ IDISの開発に参加する方法は簡単です：
 
 ## 📜 ライセンス
 
-このプロジェクトは [GNU AGPL v3](https://github.com/371tti/idis_rust/blob/master/LICENSE) ライセンスのもと公開されています。
+このプロジェクトは [GNU AGPL v3](https://github.com/371tti/idis_rust/blob/master/LICENSE) のもと公開されています。
 
 ---
 
